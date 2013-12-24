@@ -100,6 +100,7 @@
   var SVG_NAMESPACE = 'http://www.w3.org/2000/svg',
       HALF_PI = Math.PI * 0.5,
       THREE_HALVES_PI = Math.PI * 1.5,
+      TWO_PI = Math.PI * 2,
       RAD_TO_DEG = 180 / Math.PI,
       COEFF_OF_FRICTION_INVERSE = 1 - PARAMS.COEFF_OF_FRICTION,
       SQUISH_ENABLED = PARAMS.MAX_SQUISHINESS > 0 && PARAMS.COEFF_OF_SQUISHINESS > 0,
@@ -148,15 +149,17 @@
   }
 
   function createBall(time, svg, parent, index, recursiveDepth) {
-    var ball, children, element, color, radius, posX, posY, velX, velY, mass, i, childCount;
+    var ball, children, element, color, radius, angle, distance, posX, posY, velX, velY, mass, i, childCount;
 
     children = null;
 
     if (parent) {
       color = createNewColor();
       radius = getRandom(PARAMS.CHILD.MIN_SIZE_RATIO, PARAMS.CHILD.MAX_SIZE_RATIO) * parent.radius;
-      posX = parent.pos.x;
-      posY = parent.pos.y;
+      angle = getRandom(0, TWO_PI);
+      distance = getRandom(0, radius);
+      posX = parent.pos.x + distance * Math.cos(angle);
+      posY = parent.pos.y + distance * Math.sin(angle);
       velX = getRandom(PARAMS.CHILD.MIN_VELOCITY_RATIO, PARAMS.CHILD.MAX_VELOCITY_RATIO) * parent.vel.x;
       velY = getRandom(PARAMS.CHILD.MIN_VELOCITY_RATIO, PARAMS.CHILD.MAX_VELOCITY_RATIO) * parent.vel.y;
       mass = getRandom(PARAMS.MIN_DENSITY, PARAMS.MAX_DENSITY) * Math.PI * radius * radius;
@@ -380,15 +383,22 @@
       for (i = ball.index + 1; i < count; i++) {
         distance = getDistance(newPos.x, newPos.y, relativeBalls[i].pos.x, relativeBalls[i].pos.y);
         if (distance < ball.radius + relativeBalls[i].radius) {
-          if (ball.previousCollision !== i) {
-            velocities = inellasticCollision(
-              newPos, newVel, ball.mass,
-              relativeBalls[i].pos, relativeBalls[i].vel, relativeBalls[i].mass);
-            newVel = velocities.v1;
-            // TODO: squish the other ball
-            relativeBalls[i].vel = velocities.v2;
-            newPos = ball.pos;
+          if (ball.parent === null) {
+            if (ball.previousCollision !== i) {
+              velocities = inellasticCollision(
+                newPos, newVel, ball.mass,
+                relativeBalls[i].pos, relativeBalls[i].vel, relativeBalls[i].mass);
+              newVel = velocities.v1;
+              // TODO: squish the other ball
+              relativeBalls[i].vel = velocities.v2;
+              collisionDirection = Math.atan2(relativeBalls[i].pos.y - newPos.y, relativeBalls[i].pos.x - newPos.x);
+              newPos = ball.pos;
+            }
+          } else {
+            // TODO: make the forced displacement from being out-of-bounds of the parent's diameter take precedence over this (can I simply move the entire above if-else section down to after this for-loop section?)
             collisionDirection = Math.atan2(relativeBalls[i].pos.y - newPos.y, relativeBalls[i].pos.x - newPos.x);
+            newPos.x = relativeBalls[i].pos.x - (relativeBalls[i].radius + ball.radius) * Math.cos(collisionDirection);
+            newPos.y = relativeBalls[i].pos.y - (relativeBalls[i].radius + ball.radius) * Math.sin(collisionDirection);
           }
           ball.previousCollision = i;
           interBallCollision = true;
