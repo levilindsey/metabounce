@@ -1,8 +1,10 @@
 /*
  --- TODO --------------------------------------
- *** - add squishiness
- ** - add mouse
- * - add a simple GUI for all of the params
+ ***** - fix the bug that causes the parent balls to be wedged in the corner sometimes (and the children balls in the center of the window)
+ **** - add squishiness
+ *** - add mouse
+ ** - add a simple GUI for all of the params
+ * - add blur/focus listeners to the window to prevent crazy-ball syndrome
  --- LATER PROJECTS --------------------------------
  - create a couple copies of this project with different parameter settings
   - MetaBounce: Simple
@@ -70,9 +72,9 @@
     COEFF_OF_FRICTION: 0.0000,
 
     MIN_SQUISHINESS: 0, // how much the ball compresses on impact (from 0 to 1)
-    MAX_SQUISHINESS: 0.5,
+    MAX_SQUISHINESS: 0.5,// TODO: tweak these
 
-    COEFF_OF_SQUISHINESS: 1,// TODO: tweak this
+    COEFF_OF_SQUISHINESS: 1.5,// TODO: tweak this
 
     BASE: {
       BALL_COUNT: 6,
@@ -81,12 +83,12 @@
       MIN_RADIUS: 40, // pixels
       MAX_RADIUS: 100,
 
-      MIN_VELOCITY: -0.1, // pixels/millis
-      MAX_VELOCITY: 0.1
+      MIN_VELOCITY: -0.3, // pixels/millis
+      MAX_VELOCITY: 0.3
     },
     CHILD: {
-      MIN_BALL_COUNT: 1,
-      MAX_BALL_COUNT: 5,
+      MIN_BALL_COUNT: 0,
+      MAX_BALL_COUNT: 0,
 
       MIN_SIZE_RATIO: 0.06,
       MAX_SIZE_RATIO: 0.3,
@@ -198,6 +200,7 @@
         endTime: time
       },
       radius: radius,
+      rotation: 0,
       pos: {
         x: posX,
         y: posY
@@ -313,7 +316,7 @@
   //   properties from the collision.
   function handleBallMotion(ball, time, deltaTime) {
     var newPos, maxPosX, maxPosY, newVel, distance, maxDistance, collisionDirection, offset, relativeBalls, i, velocities, count,
-      interBallCollision;
+      interBallCollision, speed;
 
     offset = {};
     newVel = {
@@ -325,6 +328,46 @@
       x: ball.pos.x + ball.vel.x * deltaTime,
       y: ball.pos.y + ball.vel.y * deltaTime
     };
+
+    // --- Handle collisions with other balls --- //
+    // NOTE: This collision policy makes the earlier ball in the collection jump to the collision point, and makes the
+    // later ball immediately start bouncing away before ever reaching that point
+    if (PARAMS.INTER_BALL_COLLISIONS) {
+      relativeBalls = ball.parent ? ball.parent.children : balls;
+      interBallCollision = false;
+      count = relativeBalls.length;
+      for (i = ball.index + 1; i < count; i++) {
+        distance = getDistance(newPos.x, newPos.y, relativeBalls[i].pos.x, relativeBalls[i].pos.y);
+        if (distance < ball.radius + relativeBalls[i].radius) {
+          if (ball.parent === null) {
+            if (ball.previousCollision !== i) {
+              velocities = inellasticCollision(
+                newPos, newVel, ball.mass,
+                relativeBalls[i].pos, relativeBalls[i].vel, relativeBalls[i].mass);
+              newVel = velocities.vf1;
+              // TODO: squish the other ball
+              relativeBalls[i].vel = velocities.vf2;
+              collisionDirection = Math.atan2(relativeBalls[i].pos.y - newPos.y, relativeBalls[i].pos.x - newPos.x);
+              newPos = ball.pos;
+            }
+          } else {
+            collisionDirection = Math.atan2(relativeBalls[i].pos.y - newPos.y, relativeBalls[i].pos.x - newPos.x);
+            velocities = inellasticCollision(
+              newPos, newVel, ball.mass,
+              relativeBalls[i].pos, relativeBalls[i].vel, relativeBalls[i].mass);
+            newPos.x = relativeBalls[i].pos.x - (relativeBalls[i].radius + ball.radius) * Math.cos(collisionDirection);
+            newPos.y = relativeBalls[i].pos.y - (relativeBalls[i].radius + ball.radius) * Math.sin(collisionDirection);
+          }
+          ball.previousCollision = i;
+          interBallCollision = true;
+          break;
+        }
+      }
+
+      if (!interBallCollision) {
+        ball.previousCollision = -1;
+      }
+    }
 
     // --- Handle collisions with the walls --- //
     if (ball.parent) {
@@ -342,10 +385,14 @@
           velocities = inellasticCollision(
             newPos, newVel, ball.mass,
             ball.parent.pos, ball.parent.vel, ball.parent.mass);
-          newVel = velocities.v1;
-          ball.parent.vel = velocities.v2;
+          newVel = velocities.vf1;
         } else {
           newVel = reflect(newVel, offset);
+          speed = getSpeedInDirection(newPos, ball.parent.pos, newVel);
+          velocities = {
+            perpSpeedI1: speed,
+            perpSpeedF1: -speed
+          };
         }
         collisionDirection += Math.PI;
       }
@@ -357,61 +404,39 @@
         collisionDirection = 0;
         newPos.x = maxPosX;
         newVel.x = -Math.abs(ball.vel.x);
+        velocities = {
+          perpSpeedI1: -newVel.x,
+          perpSpeedF1: newVel.x
+        };
       } else if (newPos.x <= ball.radius) {
         collisionDirection = Math.PI;
         newPos.x = ball.radius;
         newVel.x = Math.abs(ball.vel.x);
+        velocities = {
+          perpSpeedI1: -newVel.x,
+          perpSpeedF1: newVel.x
+        };
       }
       if (newPos.y >= maxPosY) {
         collisionDirection = HALF_PI;
         newPos.y = maxPosY;
         newVel.y = -Math.abs(ball.vel.y);
+        velocities = {
+          perpSpeedI1: -newVel.y,
+          perpSpeedF1: newVel.y
+        };
       } else if (newPos.y <= ball.radius) {
         collisionDirection = THREE_HALVES_PI;
         newPos.y = ball.radius;
         newVel.y = Math.abs(ball.vel.y);
+        velocities = {
+          perpSpeedI1: -newVel.y,
+          perpSpeedF1: newVel.y
+        };
       }
     }
 
-    // --- Handle collisions with other balls --- //
-    // NOTE: This collision policy makes the earlier ball in the collection jump to the collision point, and makes the
-    // later ball immediately start bouncing away before ever reaching that point
-    if (PARAMS.INTER_BALL_COLLISIONS) {
-      relativeBalls = ball.parent ? ball.parent.children : balls;
-      interBallCollision = false;
-      count = relativeBalls.length;
-      for (i = ball.index + 1; i < count; i++) {
-        distance = getDistance(newPos.x, newPos.y, relativeBalls[i].pos.x, relativeBalls[i].pos.y);
-        if (distance < ball.radius + relativeBalls[i].radius) {
-          if (ball.parent === null) {
-            if (ball.previousCollision !== i) {
-              velocities = inellasticCollision(
-                newPos, newVel, ball.mass,
-                relativeBalls[i].pos, relativeBalls[i].vel, relativeBalls[i].mass);
-              newVel = velocities.v1;
-              // TODO: squish the other ball
-              relativeBalls[i].vel = velocities.v2;
-              collisionDirection = Math.atan2(relativeBalls[i].pos.y - newPos.y, relativeBalls[i].pos.x - newPos.x);
-              newPos = ball.pos;
-            }
-          } else {
-            // TODO: make the forced displacement from being out-of-bounds of the parent's diameter take precedence over this (can I simply move the entire above if-else section down to after this for-loop section?)
-            collisionDirection = Math.atan2(relativeBalls[i].pos.y - newPos.y, relativeBalls[i].pos.x - newPos.x);
-            newPos.x = relativeBalls[i].pos.x - (relativeBalls[i].radius + ball.radius) * Math.cos(collisionDirection);
-            newPos.y = relativeBalls[i].pos.y - (relativeBalls[i].radius + ball.radius) * Math.sin(collisionDirection);
-          }
-          ball.previousCollision = i;
-          interBallCollision = true;
-          break;
-        }
-      }
-
-      if (!interBallCollision) {
-        ball.previousCollision = -1;
-      }
-    }
-
-    if (!SQUISH_ENABLED || !handleSquish(ball, newVel, collisionDirection, time)) {
+    if (!SQUISH_ENABLED || !handleSquish(ball, collisionDirection, velocities && velocities.perpSpeedI1, velocities && velocities.perpSpeedF1, time)) {
       if (ball.children) {
         // --- Update each of this ball's children with its new offset --- //
         offset = vectorDifference(newPos, ball.pos);
@@ -424,8 +449,8 @@
     ball.vel = newVel;
   }
 
-  function handleSquish(ball, newVel, collisionDirection, time) {
-    var duration, halfDuration, progress, weight1, weight2, squishStrength, minRx, endTime, handledPositioning;
+  function handleSquish(ball, collisionDirection, perpSpeedI, perpSpeedF, time) {
+    var duration, halfDuration, progress, weight1, weight2, squishStrength, minRx, endTime, handledPositioning, avgSpeed;
     handledPositioning = false;
     if (ball.squish.isSquishing) {
       // Continue the old squish
@@ -461,19 +486,19 @@
       }
       ball.element.setAttribute('rx', ball.squish.currentRx);
     } else if (typeof collisionDirection !== 'undefined') {
-      squishStrength = magnitude(vectorDifference(ball.vel, newVel));
+      squishStrength = Math.abs(perpSpeedF - perpSpeedI);
+      avgSpeed = (Math.abs(perpSpeedI) + Math.abs(perpSpeedF)) / 2;
       if (squishStrength) {
         // Start a new squish
         minRx = getSquishMinRx(squishStrength, ball.radius);
-        endTime = getSquishEndTime(squishStrength, time);
+        endTime = getSquishEndTime(ball.radius, minRx, avgSpeed, time);
         ball.squish.isSquishing = true;
         ball.squish.rotation = collisionDirection;
         ball.squish.currentRx = ball.radius;
         ball.squish.minRx = minRx;
         ball.squish.startTime = time;
         ball.squish.endTime = endTime;
-//        ball.element.setAttribute('transform',
-//          'rotate(' + ball.squish.rotation * RAD_TO_DEG + ')');
+        ball.rotation = ball.squish.rotation * RAD_TO_DEG;
       }
     }
     return handledPositioning;
@@ -500,9 +525,20 @@
       posX += deltaR * Math.cos(ball.squish.rotation);
       posY += deltaR * Math.sin(ball.squish.rotation);
     }
+    // TODO: I was getting NaNs here...
+    if (isNaN(posX)) {
+      console.log("?1: " + posX);
+    }
+    if (isNaN(posY)) {
+      console.log("?2: " + posY);
+    }
+    if (isNaN(ball.squish.currentRx)) {
+      console.log("?3: " + ball.squish.currentRx);
+    }
     ball.element.setAttribute('fill', colorToString(ball.color.current));
     ball.element.setAttribute('cx', posX);
     ball.element.setAttribute('cy', posY);
+    ball.element.setAttribute('transform', 'rotate(' + ball.rotation + ' ' + posX + ' ' + posY + ')');
   }
 
   function handleBallTransition(ball, time) {
@@ -625,12 +661,10 @@
       PARAMS.MIN_SQUISHINESS, PARAMS.MAX_SQUISHINESS, weight1, weight2));
   }
 
-  function getSquishEndTime(squishStrength, time) {
-    // TODO: it needs to take as long as it would take the ball to move that far
-    // TODO:   (or something...)
-    // TODO:   (it is most important to keep the initial and end radius deltas equal to the component of the initial
-    // TODO:     and final velocities that is perpendicular to the squish)
-    return time +  ;
+  function getSquishEndTime(maxRadius, minRadius, avgSpeed, time) {
+    // TODO: It is most important to keep the initial and end radius deltas equal to the component of the initial and
+    // TODO:   final velocities that is perpendicular to the squish
+    return time + (maxRadius - minRadius) / avgSpeed;
   }
 
   function createNewColor() {
@@ -695,21 +729,34 @@
 
   // Awesomely helpful page: http://stackoverflow.com/questions/345838/ball-to-ball-collision-detection-and-handling
   function inellasticCollision(p1, vi1, m1, p2, vi2, m2) {
-    var normalizedCoaxialVector, tmp1i, tmp2i, tmp1f, tmp2f, tmp3, tmp4, vf1, vf2;
+    var normalizedCoaxialVector, perpSpeedI1, perpSpeedI2, perpSpeedF1, perpSpeedF2, tmp1, tmp2, vf1, vf2;
     // Get the components of the velocity vectors that are parallel to the collision (the perpendicular components will
     // remain constant across the collision)
-    normalizedCoaxialVector = normalize(vectorDifference(p1, p2));
-    tmp1i = dotProduct(vi1, normalizedCoaxialVector);
-    tmp2i = dotProduct(vi2, normalizedCoaxialVector);
+    normalizedCoaxialVector = normalize(vectorDifference(p2, p1));
+    perpSpeedI1 = dotProduct(vi1, normalizedCoaxialVector);
+    perpSpeedI2 = dotProduct(vi2, normalizedCoaxialVector);
     // Solve for new velocities using the 1-dimensional inelastic collision equation
-    tmp3 = tmp1i * m1 + tmp2i * m2;
-    tmp4 = m1 + m2;
-    tmp1f = (PARAMS.COEFF_OF_RESTITUTION * m2 * (tmp2i - tmp1i) + tmp3) / tmp4;
-    tmp2f = (PARAMS.COEFF_OF_RESTITUTION * m1 * (tmp1i - tmp2i) + tmp3) / tmp4;
+    tmp1 = perpSpeedI1 * m1 + perpSpeedI2 * m2;
+    tmp2 = m1 + m2;
+    perpSpeedF1 = (PARAMS.COEFF_OF_RESTITUTION * m2 * (perpSpeedI2 - perpSpeedI1) + tmp1) / tmp2;
+    perpSpeedF2 = (PARAMS.COEFF_OF_RESTITUTION * m1 * (perpSpeedI1 - perpSpeedI2) + tmp1) / tmp2;
     // Add the tangential velocity changes to the original velocities
-    vf1 = vectorAddition(vi1, scalarVectorProduct((tmp1f - tmp1i), normalizedCoaxialVector));
-    vf2 = vectorAddition(vi2, scalarVectorProduct((tmp2f - tmp2i), normalizedCoaxialVector));
-    return { v1: vf1, v2: vf2 };
+    vf1 = vectorAddition(vi1, scalarVectorProduct((perpSpeedF1 - perpSpeedI1), normalizedCoaxialVector));
+    vf2 = vectorAddition(vi2, scalarVectorProduct((perpSpeedF2 - perpSpeedI2), normalizedCoaxialVector));
+    return {
+      vf1: vf1,
+      vf2: vf2,
+      perpSpeedI1: perpSpeedI1,
+      perpSpeedI2: perpSpeedI2,
+      perpSpeedF1: perpSpeedF1,
+      perpSpeedF2: perpSpeedF2
+    };
+  }
+
+  function getSpeedInDirection(p1, p2, v1) {
+    var normalizedCoaxialVector;
+    normalizedCoaxialVector = normalize(vectorDifference(p2, p1));
+    return dotProduct(v1, normalizedCoaxialVector);
   }
 
   function reflect(v, reflectionLine) {
