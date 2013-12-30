@@ -1,10 +1,10 @@
 /*
  --- TODO --------------------------------------
- ***** - fix the bug that causes the parent balls to be wedged in the corner sometimes (and the children balls in the center of the window)
- **** - add squishiness
- *** - add mouse
- ** - add a simple GUI for all of the params
- * - add blur/focus listeners to the window to prevent crazy-ball syndrome
+ ***** - refactor the code
+ **** - add mouse
+ *** - add a simple GUI for all of the params
+ ** - add blur/focus listeners to the window to prevent crazy-ball syndrome
+ * - fix the bug that causes the parent balls to be wedged in the corner sometimes (and the children balls in the center of the window)
  --- LATER PROJECTS --------------------------------
  - create a couple copies of this project with different parameter settings
   - MetaBounce: Simple
@@ -316,7 +316,7 @@
   //   properties from the collision.
   function handleBallMotion(ball, time, deltaTime) {
     var newPos, maxPosX, maxPosY, newVel, distance, maxDistance, collisionDirection, offset, relativeBalls, i, velocities, count,
-      interBallCollision, speed;
+      interBallCollision, speeds;
 
     offset = {};
     newVel = {
@@ -388,10 +388,11 @@
           newVel = velocities.vf1;
         } else {
           newVel = reflect(newVel, offset);
-          speed = getSpeedInDirection(newPos, ball.parent.pos, newVel);
+          speeds = getTangVelocityAndPerpSpeed(newPos, ball.parent.pos, newVel);
           velocities = {
-            perpSpeedI1: speed,
-            perpSpeedF1: -speed
+            tangVelocity1: speeds.tangVelocity,
+            perpSpeedI1: speeds.perpSpeed,
+            perpSpeedF1: -speeds.perpSpeed
           };
         }
         collisionDirection += Math.PI;
@@ -405,6 +406,7 @@
         newPos.x = maxPosX;
         newVel.x = -Math.abs(ball.vel.x);
         velocities = {
+          tangVelocity1: { x: 0, y: newVel.y },
           perpSpeedI1: -newVel.x,
           perpSpeedF1: newVel.x
         };
@@ -413,6 +415,7 @@
         newPos.x = ball.radius;
         newVel.x = Math.abs(ball.vel.x);
         velocities = {
+          tangVelocity1: { x: 0, y: newVel.y },
           perpSpeedI1: -newVel.x,
           perpSpeedF1: newVel.x
         };
@@ -422,6 +425,7 @@
         newPos.y = maxPosY;
         newVel.y = -Math.abs(ball.vel.y);
         velocities = {
+          tangVelocity1: { x: newVel.x, y: 0 },
           perpSpeedI1: -newVel.y,
           perpSpeedF1: newVel.y
         };
@@ -430,13 +434,14 @@
         newPos.y = ball.radius;
         newVel.y = Math.abs(ball.vel.y);
         velocities = {
+          tangVelocity1: { x: newVel.x, y: 0 },
           perpSpeedI1: -newVel.y,
           perpSpeedF1: newVel.y
         };
       }
     }
 
-    if (!SQUISH_ENABLED || !handleSquish(ball, collisionDirection, velocities && velocities.perpSpeedI1, velocities && velocities.perpSpeedF1, time)) {
+    if (!SQUISH_ENABLED || !handleSquish(ball, collisionDirection, velocities && velocities.tangVelocity1, velocities && velocities.perpSpeedI1, velocities && velocities.perpSpeedF1, time)) {
       if (ball.children) {
         // --- Update each of this ball's children with its new offset --- //
         offset = vectorDifference(newPos, ball.pos);
@@ -445,11 +450,15 @@
         });
       }
       ball.pos = newPos;
+    } else {
+      // While squishing, slide the ball in the direction tangent to the collision
+      ball.pos.x += ball.squish.tangVelocity.x * deltaTime;
+      ball.pos.y += ball.squish.tangVelocity.y * deltaTime;
     }
     ball.vel = newVel;
   }
 
-  function handleSquish(ball, collisionDirection, perpSpeedI, perpSpeedF, time) {
+  function handleSquish(ball, collisionDirection, tangVelocity, perpSpeedI, perpSpeedF, time) {
     var duration, halfDuration, progress, weight1, weight2, squishStrength, minRx, endTime, handledPositioning, avgSpeed;
     handledPositioning = false;
     if (ball.squish.isSquishing) {
@@ -496,6 +505,7 @@
         ball.squish.rotation = collisionDirection;
         ball.squish.currentRx = ball.radius;
         ball.squish.minRx = minRx;
+        ball.squish.tangVelocity = tangVelocity;
         ball.squish.startTime = time;
         ball.squish.endTime = endTime;
         ball.rotation = ball.squish.rotation * RAD_TO_DEG;
@@ -729,12 +739,14 @@
 
   // Awesomely helpful page: http://stackoverflow.com/questions/345838/ball-to-ball-collision-detection-and-handling
   function inellasticCollision(p1, vi1, m1, p2, vi2, m2) {
-    var normalizedCoaxialVector, perpSpeedI1, perpSpeedI2, perpSpeedF1, perpSpeedF2, tmp1, tmp2, vf1, vf2;
+    var normalizedCoaxialVector, perpSpeedI1, perpSpeedI2, tangVelocity1, tangVelocity2, perpSpeedF1, perpSpeedF2, tmp1, tmp2, vf1, vf2;
     // Get the components of the velocity vectors that are parallel to the collision (the perpendicular components will
     // remain constant across the collision)
     normalizedCoaxialVector = normalize(vectorDifference(p2, p1));
     perpSpeedI1 = dotProduct(vi1, normalizedCoaxialVector);
     perpSpeedI2 = dotProduct(vi2, normalizedCoaxialVector);
+    tangVelocity1 = vectorDifference(vi1, scalarVectorProduct(perpSpeedI1, normalizedCoaxialVector));
+    tangVelocity2 = vectorDifference(vi2, scalarVectorProduct(perpSpeedI2, normalizedCoaxialVector));
     // Solve for new velocities using the 1-dimensional inelastic collision equation
     tmp1 = perpSpeedI1 * m1 + perpSpeedI2 * m2;
     tmp2 = m1 + m2;
@@ -746,6 +758,8 @@
     return {
       vf1: vf1,
       vf2: vf2,
+      tangVelocity1: tangVelocity1,
+      tangVelocity2: tangVelocity2,
       perpSpeedI1: perpSpeedI1,
       perpSpeedI2: perpSpeedI2,
       perpSpeedF1: perpSpeedF1,
@@ -753,10 +767,15 @@
     };
   }
 
-  function getSpeedInDirection(p1, p2, v1) {
-    var normalizedCoaxialVector;
+  function getTangVelocityAndPerpSpeed(p1, p2, v1) {
+    var normalizedCoaxialVector, perpSpeed, tangVelocity;
     normalizedCoaxialVector = normalize(vectorDifference(p2, p1));
-    return dotProduct(v1, normalizedCoaxialVector);
+    perpSpeed = dotProduct(v1, normalizedCoaxialVector);
+    tangVelocity = vectorDifference(v1, scalarVectorProduct(perpSpeed, normalizedCoaxialVector));
+    return {
+      tangVelocity: tangVelocity,
+      perpSpeed: perpSpeed
+    };
   }
 
   function reflect(v, reflectionLine) {
