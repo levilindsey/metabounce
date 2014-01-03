@@ -1,7 +1,6 @@
 /*
  --- TODO --------------------------------------
  ***** - refactor the code
- **** - add an animation effect for the touch event
  **** - move all of the color-transition code into its own separate module
  *** - add a simple GUI for all of the params
  ** - add blur/focus listeners to the window to prevent crazy-ball syndrome
@@ -114,37 +113,40 @@
       MAX_DISTANCE: 150, // pixels
       EFFECT_EASING_FUNCTION: 'linear',
       WHOOSH: {
-        DURATION: 400, // millis
+        DURATION: 300, // millis
         EASING_FUNCTION: 'linear',
+        STROKE_WIDTH: 4,
+        STROKE_TO_GRADIENT_OPACITY_RATIO: 0.8,
+        STOP_2_PERCENTAGE: 55,
         START_RADIUS: 1, // pixels
-        END_RADIUS: 100,
+        END_RADIUS: 110,
         START_COLOR: { // percentages
-          h: 0,
-          s: 0,
-          l: 70
+          h: 250,
+          s: 100,
+          l: 100
         },
         END_COLOR: {
-          h: 0,
-          s: 0,
-          l: 70
+          h: 250,
+          s: 100,
+          l: 88
         },
-        START_OPACITY: 0.9, // from 0 to 1
-        END_OPACITY: 0.5
+        START_OPACITY: 0.3, // from 0 to 1
+        END_OPACITY: 0.05
       },
       FLASH: {
-        DURATION: 120, // millis
+        DURATION: 180, // millis
         EASING_FUNCTION: 'easeOutQuad',
         START_RADIUS: 30, // pixels
         END_RADIUS: 10,
         START_COLOR: { // percentages
-          h: 0,
-          s: 0,
-          l: 90
+          h: 60,
+          s: 100,
+          l: 100
         },
         END_COLOR: {
-          h: 0,
-          s: 0,
-          l: 90
+          h: 60,
+          s: 100,
+          l: 88
         },
         START_OPACITY: 0.9, // from 0 to 1
         END_OPACITY: 0.0
@@ -854,14 +856,14 @@
 
         this.stop1 = document.createElementNS(SVG_NAMESPACE, 'stop');
         this.stop1.setAttribute('offset', '0%');
-        this.stop1.style.stopColor = PARAMS.TOUCH.FLASH.START_COLOR;
-        this.stop1.style.stopOpacity = '1';
+        this.stop1.setAttribute('stop-color', PARAMS.TOUCH.WHOOSH.START_COLOR);
+        this.stop1.setAttribute('stop-opacity', 1);
         this.gradient.appendChild(this.stop1);
 
         this.stop2 = document.createElementNS(SVG_NAMESPACE, 'stop');
         this.stop2.setAttribute('offset', '100%');
-        this.stop2.style.stopColor = PARAMS.TOUCH.FLASH.START_COLOR;
-        this.stop2.style.stopOpacity = '0';
+        this.stop2.setAttribute('stop-color', PARAMS.TOUCH.WHOOSH.START_COLOR);
+        this.stop2.setAttribute('stop-opacity', 0);
         this.gradient.appendChild(this.stop2);
 
         this.circle = document.createElementNS(SVG_NAMESPACE, 'circle');
@@ -869,12 +871,11 @@
         this.circle.setAttribute('cy', touchPos.y);
         this.circle.setAttribute('r', PARAMS.TOUCH.FLASH.START_RADIUS);
         this.circle.setAttribute('fill', 'url(#' + this.gradient.id + ')');
-        this.circle.style.opacity = PARAMS.TOUCH.FLASH.START_OPACITY;
         svg.appendChild(this.circle);
       }
 
       function update(time) {
-        var duration, weight1, weight2, radius, color, opacity;
+        var duration, weight1, weight2, radius, color, colorString, opacity;
 
         duration = this.endTime - this.startTime;
         weight2 = (time - this.startTime) / duration;
@@ -885,12 +886,14 @@
             PARAMS.TOUCH.FLASH.START_RADIUS, PARAMS.TOUCH.FLASH.END_RADIUS, weight1, weight2);
         color = util.interpolateColors(
             PARAMS.TOUCH.FLASH.START_COLOR, PARAMS.TOUCH.FLASH.END_COLOR, weight1, weight2);
-        opacity = util.interpolateColors(
+        colorString = util.colorToString(color);
+        opacity = util.getWeightedAverage(
             PARAMS.TOUCH.FLASH.START_OPACITY, PARAMS.TOUCH.FLASH.END_OPACITY, weight1, weight2);
 
         this.circle.setAttribute('r', radius);
-        this.circle.setAttribute('fill', util.colorToString(color));
-        this.circle.style.opacity = opacity;
+        this.stop1.setAttribute('stop-color', colorString);
+        this.stop2.setAttribute('stop-color', colorString);
+        this.stop1.setAttribute('stop-opacity', opacity);
       }
 
       function cleanUp() {
@@ -931,20 +934,20 @@
 
         this.stop1 = document.createElementNS(SVG_NAMESPACE, 'stop');
         this.stop1.setAttribute('offset', '0%');
-        this.stop1.style.stopColor = PARAMS.TOUCH.WHOOSH.START_COLOR;
-        this.stop1.style.stopOpacity = '0';
+        this.stop1.setAttribute('stop-color', PARAMS.TOUCH.WHOOSH.START_COLOR);
+        this.stop1.setAttribute('stop-opacity', 0);
         this.gradient.appendChild(this.stop1);
 
         this.stop2 = document.createElementNS(SVG_NAMESPACE, 'stop');
-        this.stop2.setAttribute('offset', '75%');
-        this.stop2.style.stopColor = PARAMS.TOUCH.WHOOSH.START_COLOR;
-        this.stop2.style.stopOpacity = '0';
+        this.stop2.setAttribute('offset', PARAMS.TOUCH.WHOOSH.STOP_2_PERCENTAGE + '%');
+        this.stop2.setAttribute('stop-color', PARAMS.TOUCH.WHOOSH.START_COLOR);
+        this.stop2.setAttribute('stop-opacity', 0);
         this.gradient.appendChild(this.stop2);
 
         this.stop3 = document.createElementNS(SVG_NAMESPACE, 'stop');
         this.stop3.setAttribute('offset', '100%');
-        this.stop3.style.stopColor = PARAMS.TOUCH.WHOOSH.START_COLOR;
-        this.stop3.style.stopOpacity = '1';
+        this.stop3.setAttribute('stop-color', PARAMS.TOUCH.WHOOSH.START_COLOR);
+        this.stop3.setAttribute('stop-opacity', PARAMS.TOUCH.WHOOSH.START_OPACITY * PARAMS.TOUCH.WHOOSH.STROKE_TO_GRADIENT_OPACITY_RATIO);
         this.gradient.appendChild(this.stop3);
 
         this.circle = document.createElementNS(SVG_NAMESPACE, 'circle');
@@ -952,12 +955,14 @@
         this.circle.setAttribute('cy', touchPos.y);
         this.circle.setAttribute('r', PARAMS.TOUCH.WHOOSH.START_RADIUS);
         this.circle.setAttribute('fill', 'url(#' + this.gradient.id + ')');
-        this.circle.style.opacity = PARAMS.TOUCH.WHOOSH.START_OPACITY;
+        this.circle.setAttribute('stroke', PARAMS.TOUCH.WHOOSH.START_COLOR);
+        this.circle.setAttribute('stroke-width', PARAMS.TOUCH.WHOOSH.STROKE_WIDTH + 'px');
+        this.circle.setAttribute('stroke-opacity', PARAMS.TOUCH.WHOOSH.START_OPACITY);
         svg.appendChild(this.circle);
       }
 
       function update(time) {
-        var duration, weight1, weight2, radius, color, opacity;
+        var duration, weight1, weight2, radius, color, colorString, opacity;
 
         duration = this.endTime - this.startTime;
         weight2 = (time - this.startTime) / duration;
@@ -968,21 +973,27 @@
             PARAMS.TOUCH.WHOOSH.START_RADIUS, PARAMS.TOUCH.WHOOSH.END_RADIUS, weight1, weight2);
         color = util.interpolateColors(
             PARAMS.TOUCH.WHOOSH.START_COLOR, PARAMS.TOUCH.WHOOSH.END_COLOR, weight1, weight2);
-        opacity = util.interpolateColors(
+        colorString = util.colorToString(color);
+        opacity = util.getWeightedAverage(
             PARAMS.TOUCH.WHOOSH.START_OPACITY, PARAMS.TOUCH.WHOOSH.END_OPACITY, weight1, weight2);
 
         this.circle.setAttribute('r', radius);
-        this.circle.setAttribute('fill', util.colorToString(color));
-        this.circle.style.opacity = opacity;
+        this.stop2.setAttribute('stop-color', colorString);
+        this.stop3.setAttribute('stop-color', colorString);
+        this.stop3.setAttribute('stop-opacity', opacity * PARAMS.TOUCH.WHOOSH.STROKE_TO_GRADIENT_OPACITY_RATIO);
+        this.circle.setAttribute('stroke', colorString);
+        this.circle.setAttribute('stroke-opacity', opacity);
       }
 
       function cleanUp() {
         svg.removeChild(this.circle);
         this.gradient.removeChild(this.stop1);
         this.gradient.removeChild(this.stop2);
+        this.gradient.removeChild(this.stop3);
         defs.removeChild(this.gradient);
         this.stop1 = null;
         this.stop2 = null;
+        this.stop3 = null;
         this.gradient = null;
         this.circle = null;
       }
