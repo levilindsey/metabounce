@@ -7,10 +7,10 @@
   var PARAMS = {
     // -------------------------------------------- //
     //            v   Play with me!!   v            //
-    INTER_BALL_COLLISIONS: true,
-    SQUISH_ON: false,
-    INDEPENDENT_CHILD_MOVEMENT: false,
-    PARENT_CHILD_MOMENTUM_TRANSFER: false,
+    INTER_BALL_COLLISIONS_ON: true,
+    SQUISH_ON: true,
+    INDEPENDENT_CHILD_MOVEMENT_ON: false,
+    PARENT_CHILD_MOMENTUM_TRANSFER_ON: false,
 
     GRAVITATIONAL_ACCELERATION: 0.00001, // pixels / millis^2
 
@@ -27,7 +27,7 @@
     INTRA_BALL_COLLISION_SQUISH_STRENGTH_COEFF: 0.9,
 
     BASE: {
-      BALL_COUNT: 6,
+      BALL_COUNT: 1,
       RECURSIVE_DEPTH: 0,
 
       MIN_RADIUS: 40, // pixels
@@ -241,9 +241,9 @@
   function updateBall(ball, time, deltaTime) {
     var i, childCount;
 
-    handleBallColorTransition(ball, time);
     handleBallMotion(ball, time, deltaTime);
-
+    handleBallColorTransition(ball, time);
+    colorShifter.updateShine(ball.iridescenceTransitions, ball.specularityTransitions, time, ball.squish.rotation);
     applyBallParams(ball);
 
     if (ball.children) {
@@ -277,18 +277,16 @@
   }
 
   function createBalls(time) {
-    var i, shineGradients;
-
-    shineGradients = colorShifter.getShineGradients();
+    var i;
 
     balls = [];
     for (i = 0; i < PARAMS.BASE.BALL_COUNT; i++) {
-      balls[i] = createBall(time, svg, shineGradients, null, i, PARAMS.BASE.RECURSIVE_DEPTH);
+      balls[i] = createBall(time, svg, null, i, PARAMS.BASE.RECURSIVE_DEPTH);
     }
   }
 
-  function createBall(time, svg, shineGradients, parent, index, recursiveDepth) {
-    var ball, children, element, color, radius, angle, distance, posX, posY, velX, velY, mass, shineElements,
+  function createBall(time, svg, parent, index, recursiveDepth) {
+    var ball, children, element, color, radius, angle, distance, posX, posY, velX, velY, mass, shineGradientTransitions,
       shineElement, i, childCount;
 
     children = null;
@@ -314,12 +312,18 @@
     element = document.createElementNS(SVG_NAMESPACE, 'ellipse');
     svg.appendChild(element);
 
-    shineElements = [];
-    shineGradients.forEach(function(gradient) {
+    shineGradientTransitions = colorShifter.createShineGradientTransitions(time);
+    shineGradientTransitions.iridescenceTransitions.forEach(function(gradientTransition) {
       shineElement = document.createElementNS(SVG_NAMESPACE, 'ellipse');
-      shineElement.setAttribute('fill', 'url(#' + gradient.id + ')');
+      shineElement.setAttribute('fill', 'url(#' + gradientTransition.gradient.id + ')');
       svg.appendChild(shineElement);
-      shineElements.push(shineElement);
+      gradientTransition.element = shineElement;
+    });
+    shineGradientTransitions.specularityTransitions.forEach(function(gradientTransition) {
+      shineElement = document.createElementNS(SVG_NAMESPACE, 'ellipse');
+      shineElement.setAttribute('fill', 'url(#' + gradientTransition.gradient.id + ')');
+      svg.appendChild(shineElement);
+      gradientTransition.element = shineElement;
     });
 
     ball = {
@@ -327,7 +331,8 @@
       children: children,
       index: index,
       element: element,
-      shineElements: shineElements,
+      iridescenceTransitions: shineGradientTransitions.iridescenceTransitions,
+      specularityTransitions: shineGradientTransitions.specularityTransitions,
       color: {
         startTime: time,
         endTime: time,
@@ -395,7 +400,7 @@
     };
 
     // --- Handle collisions with other balls --- //
-    if (PARAMS.INTER_BALL_COLLISIONS) {
+    if (PARAMS.INTER_BALL_COLLISIONS_ON) {
       relativeBalls = ball.parent ? ball.parent.children : balls;
       count = relativeBalls.length;
       for (i = ball.index + 1; i < count; i++) {
@@ -439,7 +444,7 @@
         offset.y = maxDistance * Math.sin(collisionAngle);
         newPos.x = ball.parent.pos.x + offset.x;
         newPos.y = ball.parent.pos.y + offset.y;
-        if (PARAMS.PARENT_CHILD_MOMENTUM_TRANSFER) {
+        if (PARAMS.PARENT_CHILD_MOMENTUM_TRANSFER_ON) {
           velocities = util.inellasticCollision(
             newPos, newVel, ball.mass,
             ball.parent.pos, ball.parent.vel, ball.parent.mass);
@@ -591,7 +596,7 @@
   }
 
   function addOffset(ball, offset) {
-    if (PARAMS.INDEPENDENT_CHILD_MOVEMENT || ball.squish.isSquishing) {
+    if (PARAMS.INDEPENDENT_CHILD_MOVEMENT_ON || ball.squish.isSquishing) {
       if (ball.children) {
         ball.children.forEach(function(child) {
           addOffset(child, offset);
@@ -621,12 +626,22 @@
     ball.element.setAttribute('ry', ball.radius);
     ball.element.setAttribute('transform', 'rotate(' + ball.rotation + ' ' + posX + ' ' + posY + ')');
 
-    ball.shineElements.forEach(function(shineElement) {
-      shineElement.setAttribute('cx', posX);
-      shineElement.setAttribute('cy', posY);
-      shineElement.setAttribute('rx', ball.squish.currentRx);
-      shineElement.setAttribute('ry', ball.radius);
-      shineElement.setAttribute('transform', 'rotate(' + ball.rotation + ' ' + posX + ' ' + posY + ')');
+    ball.specularityTransitions.forEach(function(gradientTransition) {
+      // Update the svg element that holds the gradient
+      gradientTransition.element.setAttribute('cx', posX);
+      gradientTransition.element.setAttribute('cy', posY);
+      gradientTransition.element.setAttribute('rx', ball.squish.currentRx);
+      gradientTransition.element.setAttribute('ry', ball.radius);
+      gradientTransition.element.setAttribute('transform', 'rotate(' + ball.rotation + ' ' + posX + ' ' + posY + ')');
+    });
+
+    ball.iridescenceTransitions.forEach(function(gradientTransition) {
+      // Update the svg element that holds the gradient
+      gradientTransition.element.setAttribute('cx', posX);
+      gradientTransition.element.setAttribute('cy', posY);
+      gradientTransition.element.setAttribute('rx', ball.squish.currentRx);
+      gradientTransition.element.setAttribute('ry', ball.radius);
+      gradientTransition.element.setAttribute('transform', 'rotate(' + ball.rotation + ' ' + posX + ' ' + posY + ')');
     });
   }
 
@@ -917,7 +932,7 @@
   // colorShifter
 
   var colorShifter = (function() {
-    var svgDefs, transition, shineGradients, currentGradientID;
+    var svgDefs, transition, currentGradientID;
 
     function init(defsElement, time) {
       var h1, h2, s1, s2, l1, l2;
@@ -966,89 +981,85 @@
         }
       };
 
-      createShineGradients(time);
-
       update(time + 1);
     }
 
-    function createShineGradients(time) {
-      var i, shineTransition;
+    function createShineGradientTransitions(time) {
+      var iridescenceTransitions, specularityTransitions, i;
 
-      transition.specularities = [];
-      transition.iridescences = [];
-      shineGradients = [];
+      iridescenceTransitions = [];
+      specularityTransitions = [];
 
       if (PARAMS.SHINE.ON) {
         // The ball circumference gradient
-        createBallEdgeGradient(time);
+        iridescenceTransitions.push(createBallEdgeGradientTransition(time));
 
         // The iridescence gradients
         for (i = 0; i < PARAMS.SHINE.IRIDESCENCE.COUNT; i++) {
-          shineTransition = createIridescenceTransition(time, false);
-          createShineGradient(shineTransition, true, false);
+          iridescenceTransitions.push(createIridescenceTransition(time, false, true, false));
         }
 
         // The specular highlight gradients
         for (i = 0; i < PARAMS.SHINE.SPECULARITY.COUNT; i++) {
-          shineTransition = createSpecularityTransition(time);
-          createShineGradient(shineTransition, false, false);
+          specularityTransitions.push(createSpecularityTransition(time, false, false));
         }
       }
+
+      return {
+        iridescenceTransitions: iridescenceTransitions,
+        specularityTransitions: specularityTransitions
+      };
     }
 
-    function createBallEdgeGradient(time) {
-      var shineTransition;
-
-      shineTransition = createIridescenceTransition(time, true);
-      createShineGradient(shineTransition, true, true);
+    function createBallEdgeGradientTransition(time) {
+      var shineTransition = createIridescenceTransition(time, true, true, true);
 
       shineTransition.radius.end = 50;
       shineTransition.centerAngle.end = 0;
       shineTransition.centerRadius.end = 0;
-      shineTransition.focusDeltaXRatio.end = 0;
-      shineTransition.focusDeltaYRatio.end = 0;
+      shineTransition.focusDeltaAngle.end = 0;
+      shineTransition.focusDeltaRadiusRatio.end = 0;
 
       shineTransition.stop2.setAttribute('offset', PARAMS.SHINE.IRIDESCENCE.BORDER_GRADIENT_STOP_OFFSET + '%');
+
+      return shineTransition;
     }
 
-    function createIridescenceTransition(time, fixedDimensions) {
-      var iridescenceTransition, h, o, r, ca, cr, fDeltaXRatio, fDeltaYRatio;
+    function createIridescenceTransition(time, fixedDimensions, isIridescence, reverseGradientDirection) {
+      var h, o, r, ca, cr, fDeltaAngle, fDeltaRadius;
 
       h = util.getRandom(0, 360);
       o = util.getRandom(PARAMS.SHINE.IRIDESCENCE.MIN_OPACITY, PARAMS.SHINE.IRIDESCENCE.MAX_OPACITY);
       r = util.getRandom(PARAMS.SHINE.IRIDESCENCE.MIN_RADIUS, PARAMS.SHINE.IRIDESCENCE.MAX_RADIUS);
       ca = util.getRandom(0, TWO_PI);
       cr = util.getRandom(PARAMS.SHINE.IRIDESCENCE.MIN_CENTER_RADIUS, PARAMS.SHINE.IRIDESCENCE.MAX_CENTER_RADIUS, 'easeOutQuad');
-      fDeltaXRatio = util.getRandom(-PARAMS.SHINE.IRIDESCENCE.MAX_F_DELTA_RATIO, PARAMS.SHINE.IRIDESCENCE.MAX_F_DELTA_RATIO);
-      fDeltaYRatio = util.getRandom(-PARAMS.SHINE.IRIDESCENCE.MAX_F_DELTA_RATIO, PARAMS.SHINE.IRIDESCENCE.MAX_F_DELTA_RATIO);
+      fDeltaAngle = util.getRandom(-Math.PI, Math.PI);
+      fDeltaRadius = util.getRandom(0, PARAMS.SHINE.IRIDESCENCE.MAX_F_DELTA_RATIO);
 
-      iridescenceTransition = createShineTransition(h, o, r, ca, cr, fDeltaXRatio, fDeltaYRatio, time, fixedDimensions);
-      transition.iridescences.push(iridescenceTransition);
-      return iridescenceTransition;
+      return createShineTransition(h, o, r, ca, cr, fDeltaAngle, fDeltaRadius, time, fixedDimensions, isIridescence, reverseGradientDirection);
     }
 
-    function createSpecularityTransition(time) {
-      var specularityTransition, h, o, r, ca, cr, fDeltaXRatio, fDeltaYRatio;
+    function createSpecularityTransition(time, isIridescence, reverseGradientDirection) {
+      var h, o, r, ca, cr, fDeltaAngle, fDeltaRadius;
 
       h = util.getRandom(0, 360);
       o = util.getRandom(PARAMS.SHINE.SPECULARITY.MIN_OPACITY, PARAMS.SHINE.SPECULARITY.MAX_OPACITY);
       r = util.getRandom(PARAMS.SHINE.SPECULARITY.MIN_RADIUS, PARAMS.SHINE.SPECULARITY.MAX_RADIUS);
       ca = util.getRandom(0, TWO_PI);
       cr = util.getRandom(PARAMS.SHINE.SPECULARITY.MIN_CENTER_RADIUS, PARAMS.SHINE.SPECULARITY.MAX_CENTER_RADIUS, 'easeOutQuad');
-      fDeltaXRatio = util.getRandom(-PARAMS.SHINE.SPECULARITY.MAX_F_DELTA_RATIO, PARAMS.SHINE.SPECULARITY.MAX_F_DELTA_RATIO);
-      fDeltaYRatio = util.getRandom(-PARAMS.SHINE.SPECULARITY.MAX_F_DELTA_RATIO, PARAMS.SHINE.SPECULARITY.MAX_F_DELTA_RATIO);
+      fDeltaAngle = util.getRandom(-Math.PI, Math.PI);
+      fDeltaRadius = util.getRandom(0, PARAMS.SHINE.SPECULARITY.MAX_F_DELTA_RATIO);
 
-      specularityTransition = createShineTransition(h, o, r, ca, cr, fDeltaXRatio, fDeltaYRatio, time, false);
-      transition.specularities.push(specularityTransition);
-      return specularityTransition;
+      return createShineTransition(h, o, r, ca, cr, fDeltaAngle, fDeltaRadius, time, false, isIridescence, reverseGradientDirection);
     }
 
-    function createShineTransition(h, o, r, ca, cr, fDeltaXRatio, fDeltaYRatio, time, fixedDimensions) {
-      return {
+    function createShineTransition(h, o, r, ca, cr, fDeltaAngle, fDeltaRadius, time, fixedDimensions, isIridescence, reverseGradientDirection) {
+      var shineTransition = {
         gradient: null,
         stop1: null,
         stop2: null,
-        reverseGradientDirection: false,
+        isIridescence: isIridescence,
+        reverseGradientDirection: reverseGradientDirection,
         fixedDimensions: fixedDimensions,
         hue: {
           start: h,
@@ -1080,31 +1091,33 @@
           startTime: time,
           endTime: time
         },
-        focusDeltaXRatio: {
-          start: fDeltaXRatio,
-          end: fDeltaXRatio,
+        focusDeltaAngle: {
+          start: fDeltaAngle,
+          end: fDeltaAngle,
           startTime: time,
           endTime: time
         },
-        focusDeltaYRatio: {
-          start: fDeltaYRatio,
-          end: fDeltaYRatio,
+        focusDeltaRadiusRatio: {
+          start: fDeltaRadius,
+          end: fDeltaRadius,
           startTime: time,
           endTime: time
         }
       };
+      createShineGradient(shineTransition);
+      return shineTransition;
     }
 
-    function createShineGradient(shineTransitionObj, isIridescence, reverseGradientDirection) {
+    function createShineGradient(shineTransitionObj) {
       var gradient, stop1, stop2, cx, cy, r, fx, fy, gradientOpacity, stopColor;
 
       cx = shineTransitionObj.centerRadius.start * Math.cos(shineTransitionObj.centerAngle.start) + 50;
       cy = shineTransitionObj.centerRadius.start * Math.sin(shineTransitionObj.centerAngle.start) + 50;
       r = shineTransitionObj.radius.start;
-      fx = r * shineTransitionObj.focusDeltaXRatio.start + cx;
-      fy = r * shineTransitionObj.focusDeltaYRatio.start + cy;
+      fx = shineTransitionObj.focusDeltaRadiusRatio.start * Math.cos(shineTransitionObj.focusDeltaAngle.start) + cx;
+      fy = shineTransitionObj.focusDeltaRadiusRatio.start * Math.sin(shineTransitionObj.focusDeltaAngle.start) + cy;
       gradientOpacity = shineTransitionObj.opacity.start;
-      if (isIridescence) {
+      if (shineTransitionObj.isIridescence) {
         stopColor = {
           h: shineTransitionObj.hue.start,
           s: PARAMS.SHINE.IRIDESCENCE.SATURATION,
@@ -1134,7 +1147,7 @@
       stop2 = document.createElementNS(SVG_NAMESPACE, 'stop');
       stop2.setAttribute('stop-color', stopColor);
 
-      if (reverseGradientDirection) {
+      if (shineTransitionObj.reverseGradientDirection) {
         stop1.setAttribute('offset', '100%');
         stop1.setAttribute('stop-opacity', '1');
         stop2.setAttribute('offset', '0%');
@@ -1150,17 +1163,14 @@
         gradient.appendChild(stop2);
       }
 
-      shineGradients.push(gradient);
-
       shineTransitionObj.gradient = gradient;
       shineTransitionObj.stop1 = stop1;
       shineTransitionObj.stop2 = stop2;
-      shineTransitionObj.reverseGradientDirection = reverseGradientDirection;
+
+      return gradient;
     }
 
     function update(time) {
-      var radius, center;
-
       handleHSLComponentTransitionCompletion('hue', time);
       handleHSLComponentTransitionCompletion('saturation', time);
       handleHSLComponentTransitionCompletion('lightness', time);
@@ -1168,37 +1178,41 @@
       computeCurrentHSLComponentMinMax('hue', time);
       computeCurrentHSLComponentMinMax('saturation', time);
       computeCurrentHSLComponentMinMax('lightness', time);
+    }
 
-      if (PARAMS.SHINE.ON) {
-        transition.iridescences.forEach(function(iridescenceTransition) {
+    function updateShine(iridescenceTransitions, specularityTransitions, time, rotation) {
+      var radius, center;
+
+      if (PARAMS.SHINE.ON) { // TODO: move this test elsewhere (and in general, think of where to put tests like this)
+        iridescenceTransitions.forEach(function(iridescenceTransition) {
           handleIridescenceTransitionCompletion(iridescenceTransition, 'hue', time);
           handleIridescenceTransitionCompletion(iridescenceTransition, 'opacity', time);
           handleIridescenceTransitionCompletion(iridescenceTransition, 'radius', time);
           handleIridescenceTransitionCompletion(iridescenceTransition, 'centerAngle', time);
           handleIridescenceTransitionCompletion(iridescenceTransition, 'centerRadius', time);
-          handleIridescenceTransitionCompletion(iridescenceTransition, 'focusDeltaXRatio', time);
-          handleIridescenceTransitionCompletion(iridescenceTransition, 'focusDeltaYRatio', time);
+          handleIridescenceTransitionCompletion(iridescenceTransition, 'focusDeltaAngle', time);
+          handleIridescenceTransitionCompletion(iridescenceTransition, 'focusDeltaRadiusRatio', time);
 
           updateCurrentShineValue(iridescenceTransition, 'hue', time, true);
           updateCurrentShineValue(iridescenceTransition, 'opacity', time, true);
           radius = updateCurrentShineValue(iridescenceTransition, 'radius', time, true);
-          center = updateCurrentShineCenter(iridescenceTransition, time);
-          updateCurrentShineFocus(iridescenceTransition, radius, center, time);
+          center = updateCurrentShineCenter(iridescenceTransition, time, rotation);
+          updateCurrentShineFocus(iridescenceTransition, radius, center, time, rotation);
         });
-        transition.specularities.forEach(function(specularityTransition) {
+        specularityTransitions.forEach(function(specularityTransition) {
           handleSpecularityTransitionCompletion(specularityTransition, 'hue', time);
           handleSpecularityTransitionCompletion(specularityTransition, 'opacity', time);
           handleSpecularityTransitionCompletion(specularityTransition, 'radius', time);
           handleSpecularityTransitionCompletion(specularityTransition, 'centerAngle', time);
           handleSpecularityTransitionCompletion(specularityTransition, 'centerRadius', time);
-          handleSpecularityTransitionCompletion(specularityTransition, 'focusDeltaXRatio', time);
-          handleSpecularityTransitionCompletion(specularityTransition, 'focusDeltaYRatio', time);
+          handleSpecularityTransitionCompletion(specularityTransition, 'focusDeltaAngle', time);
+          handleSpecularityTransitionCompletion(specularityTransition, 'focusDeltaRadiusRatio', time);
 
           updateCurrentShineValue(specularityTransition, 'hue', time, false);
           updateCurrentShineValue(specularityTransition, 'opacity', time, false);
           radius = updateCurrentShineValue(specularityTransition, 'radius', time, false);
-          center = updateCurrentShineCenter(specularityTransition, time);
-          updateCurrentShineFocus(specularityTransition, radius, center, time);
+          center = updateCurrentShineCenter(specularityTransition, time, rotation);
+          updateCurrentShineFocus(specularityTransition, radius, center, time, rotation);
         });
       }
     }
@@ -1243,10 +1257,16 @@
               value = shineTransitionObj[property].end;
             }
             break;
-          case 'focusDeltaXRatio':
-          case 'focusDeltaYRatio':
-            if (PARAMS.SHINE.IRIDESCENCE.GRADIENT_MOVES && !shineTransitionObj.fixedDimensions) {
-              value = util.getRandom(-PARAMS.SHINE.IRIDESCENCE.MAX_F_DELTA_RATIO, PARAMS.SHINE.IRIDESCENCE.MAX_F_DELTA_RATIO);
+          case 'focusDeltaAngle':
+            if (PARAMS.SHINE.SPECULARITY.GRADIENT_MOVES && !shineTransitionObj.fixedDimensions) {
+              value = util.getRandom(-Math.PI, Math.PI);
+            } else {
+              value = shineTransitionObj[property].end;
+            }
+            break;
+          case 'focusDeltaRadiusRatio':
+            if (PARAMS.SHINE.SPECULARITY.GRADIENT_MOVES && !shineTransitionObj.fixedDimensions) {
+              value = util.getRandom(0, PARAMS.SHINE.SPECULARITY.MAX_F_DELTA_RATIO);
             } else {
               value = shineTransitionObj[property].end;
             }
@@ -1297,10 +1317,16 @@
               value = shineTransitionObj[property].end;
             }
             break;
-          case 'focusDeltaXRatio':
-          case 'focusDeltaYRatio':
+          case 'focusDeltaAngle':
             if (PARAMS.SHINE.SPECULARITY.GRADIENT_MOVES && !shineTransitionObj.fixedDimensions) {
-              value = util.getRandom(-PARAMS.SHINE.SPECULARITY.MAX_F_DELTA_RATIO, PARAMS.SHINE.SPECULARITY.MAX_F_DELTA_RATIO);
+              value = util.getRandom(-Math.PI, Math.PI);
+            } else {
+              value = shineTransitionObj[property].end;
+            }
+            break;
+          case 'focusDeltaRadiusRatio':
+            if (PARAMS.SHINE.SPECULARITY.GRADIENT_MOVES && !shineTransitionObj.fixedDimensions) {
+              value = util.getRandom(0, PARAMS.SHINE.SPECULARITY.MAX_F_DELTA_RATIO);
             } else {
               value = shineTransitionObj[property].end;
             }
@@ -1356,7 +1382,7 @@
       return currentValue;
     }
 
-    function updateCurrentShineCenter(shineTransitionObj, time) {
+    function updateCurrentShineCenter(shineTransitionObj, time, rotation) {
       var duration, weight1, weight2, currentAngle, currentRadius, currentX, currentY;
 
       duration = shineTransitionObj.centerAngle.endTime - shineTransitionObj.centerAngle.startTime;
@@ -1373,8 +1399,8 @@
       currentRadius = util.getWeightedAverage(
         shineTransitionObj.centerRadius.start, shineTransitionObj.centerRadius.end, weight1, weight2);
 
-      currentX = currentRadius * Math.cos(currentAngle) + 50;
-      currentY = currentRadius * Math.sin(currentAngle) + 50;
+      currentX = currentRadius * Math.cos(currentAngle - rotation) + 50;
+      currentY = currentRadius * Math.sin(currentAngle - rotation) + 50;
 
       shineTransitionObj.gradient.setAttribute('cx', currentX + '%');
       shineTransitionObj.gradient.setAttribute('cy', currentY + '%');
@@ -1382,25 +1408,25 @@
       return { x: currentX, y: currentY };
     }
 
-    function updateCurrentShineFocus(shineTransitionObj, currentRadius, currentCenter, time) {
-      var duration, weight1, weight2, currentFocusDeltaXRatio, currentFocusDeltaYRatio, currentX, currentY;
+    function updateCurrentShineFocus(shineTransitionObj, currentRadius, currentCenter, time, rotation) {
+      var duration, weight1, weight2, currentFocusDeltaAngle, currentFocusDeltaRadius, currentX, currentY;
 
-      duration = shineTransitionObj.focusDeltaXRatio.endTime - shineTransitionObj.focusDeltaXRatio.startTime;
-      weight2 = (time - shineTransitionObj.focusDeltaXRatio.startTime) / duration;
+      duration = shineTransitionObj.focusDeltaAngle.endTime - shineTransitionObj.focusDeltaAngle.startTime;
+      weight2 = (time - shineTransitionObj.focusDeltaAngle.startTime) / duration;
       weight2 = util.applyEasing(weight2, PARAMS.SHINE.EASING_FUNCTION);
       weight1 = 1 - weight2;
-      currentFocusDeltaXRatio = util.getWeightedAverage(
-        shineTransitionObj.focusDeltaXRatio.start, shineTransitionObj.focusDeltaXRatio.end, weight1, weight2);
+      currentFocusDeltaAngle = util.getWeightedAverage(
+        shineTransitionObj.focusDeltaAngle.start, shineTransitionObj.focusDeltaAngle.end, weight1, weight2);
 
-      duration = shineTransitionObj.focusDeltaYRatio.endTime - shineTransitionObj.focusDeltaYRatio.startTime;
-      weight2 = (time - shineTransitionObj.focusDeltaYRatio.startTime) / duration;
+      duration = shineTransitionObj.focusDeltaRadiusRatio.endTime - shineTransitionObj.focusDeltaRadiusRatio.startTime;
+      weight2 = (time - shineTransitionObj.focusDeltaRadiusRatio.startTime) / duration;
       weight2 = util.applyEasing(weight2, PARAMS.SHINE.EASING_FUNCTION);
       weight1 = 1 - weight2;
-      currentFocusDeltaYRatio = util.getWeightedAverage(
-        shineTransitionObj.focusDeltaYRatio.start, shineTransitionObj.focusDeltaYRatio.end, weight1, weight2);
+      currentFocusDeltaRadius = currentRadius * util.getWeightedAverage(
+        shineTransitionObj.focusDeltaRadiusRatio.start, shineTransitionObj.focusDeltaRadiusRatio.end, weight1, weight2);
 
-      currentX = currentRadius * currentFocusDeltaXRatio + currentCenter.x;
-      currentY = currentRadius * currentFocusDeltaYRatio + currentCenter.y;
+      currentX = currentFocusDeltaRadius * Math.cos(currentFocusDeltaAngle - rotation) + currentCenter.x;
+      currentY = currentFocusDeltaRadius * Math.sin(currentFocusDeltaAngle - rotation) + currentCenter.y;
 
       shineTransitionObj.gradient.setAttribute('fx', currentX + '%');
       shineTransitionObj.gradient.setAttribute('fy', currentY + '%');
@@ -1470,15 +1496,12 @@
       };
     }
 
-    function getShineGradients() {
-      return shineGradients;
-    }
-
     return {
       init: init,
       update: update,
+      updateShine: updateShine,
       createNewColor: createNewColor,
-      getShineGradients: getShineGradients
+      createShineGradientTransitions: createShineGradientTransitions
     }
   })();
 
