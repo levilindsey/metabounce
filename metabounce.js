@@ -8,9 +8,12 @@
     // -------------------------------------------- //
     //            v   Play with me!!   v            //
     INTER_BALL_COLLISIONS_ON: true,
-    SQUISH_ON: true,
+    SQUISH_ON: false,
     INDEPENDENT_CHILD_MOVEMENT_ON: false,
     PARENT_CHILD_MOMENTUM_TRANSFER_ON: false,
+    SHINE_ON: true,
+    POPPING_ON: true,// TODO:
+    GROWING_ON: true,// TODO:
 
     GRAVITATIONAL_ACCELERATION: 0.00001, // pixels / millis^2
 
@@ -26,8 +29,11 @@
     COEFF_OF_SQUISHINESS: 0.37,
     INTRA_BALL_COLLISION_SQUISH_STRENGTH_COEFF: 0.9,
 
+    MIN_RADIUS_GROWTH_RATE: 0.0005, // pixels/millis
+    MAX_RADIUS_GROWTH_RATE: 0.003, // pixels/millis
+
     BASE: {
-      BALL_COUNT: 1,
+      BALL_COUNT: 5,
       RECURSIVE_DEPTH: 0,
 
       MIN_RADIUS: 40, // pixels
@@ -45,6 +51,13 @@
 
       MIN_VELOCITY_RATIO: 0.1,
       MAX_VELOCITY_RATIO: 0.5
+    },
+    POP: {
+      VELOCITY_CHANGE_MAGNITUDE_TIMES_RADIUS_THRESHOLD: 90, // pixels^2/millis
+      RADIUS_THRESHOLD: 120,
+      NEW_BALL_SPAWN_COUNT: 3,
+      NEW_BALL_SPEED_RATIO: 0.5,
+      NEW_BALL_MAX_RADIUS_RATIO: 0.6
     },
     COLOR: {
       MINOR_EASING_FUNCTION: 'easeInOutQuad',
@@ -69,10 +82,9 @@
       BACKGROUND_IMAGE: 'url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAN1wAADdcBQiibeAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAADVSURBVHic7duxDYAwAANBiNgDsf+OgQ1oviBIdxNY33s/z+veFjbG+HrCq7XX/YCAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYDRsfoPY8759YRXa9f7AQEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjAaMHQNgFBphZsIkAAAAASUVORK5CYII=)'
     },
     SHINE: {
-      ON: true,
       EASING_FUNCTION: 'easeInOutQuad',
       IRIDESCENCE: {
-        COUNT: 5,
+        COUNT: 6,
 
         GRADIENT_MOVES: true,
         GRADIENT_SIZE_CHANGES: true,
@@ -223,34 +235,40 @@
   }
 
   function animationLoop() {
-    var currentTime, deltaTime;
+    var currentTime, deltaTime, i;
+
     currentTime = Date.now();
     deltaTime = currentTime - previousTime;
 
     colorShifter.update(currentTime);
     touchAnimator.update(currentTime);
 
-    balls.forEach(function(ball) {
-      updateBall(ball, currentTime, deltaTime);
-    });
+    for (i = 0; i < balls.length; i++) {
+      updateBall(balls[i], currentTime, deltaTime, balls);
+    }
 
     previousTime = currentTime;
     util.myRequestAnimationFrame(animationLoop);
   }
 
-  function updateBall(ball, time, deltaTime) {
-    var i, childCount;
+  function updateBall(ball, time, deltaTime, relativeBalls) {
+    var i, removed;
 
-    handleBallMotion(ball, time, deltaTime);
-    handleBallColorTransition(ball, time);
-    colorShifter.updateShine(ball.iridescenceTransitions, ball.specularityTransitions, time, ball.squish.rotation);
-    applyBallParams(ball);
+    if (PARAMS.GROWING_ON) {
+      ball.radius += ball.radiusGrowthRate * deltaTime;
+    }
 
-    if (ball.children) {
-      // Recursively update each of the children balls
-      childCount = ball.children.length;
-      for (i = 0; i < childCount; i++) {
-        updateBall(ball.children[i], time, deltaTime);
+    removed = handleBallMotion(ball, time, deltaTime, relativeBalls);
+    if (!removed) {
+      handleBallColorTransition(ball, time);
+      colorShifter.updateShine(ball.iridescenceTransitions, ball.specularityTransitions, time, ball.squish.rotation);
+      applyBallParams(ball);
+
+      if (ball.children) {
+        // Recursively update each of the children balls
+        for (i = 0; i < ball.children.length; i++) {
+          updateBall(ball.children[i], time, deltaTime, ball.children);
+        }
       }
     }
   }
@@ -281,33 +299,58 @@
 
     balls = [];
     for (i = 0; i < PARAMS.BASE.BALL_COUNT; i++) {
-      balls[i] = createBall(time, svg, null, i, PARAMS.BASE.RECURSIVE_DEPTH);
+      balls[i] = createBall(time, svg, null, i, PARAMS.BASE.RECURSIVE_DEPTH, null, null);
     }
   }
 
-  function createBall(time, svg, parent, index, recursiveDepth) {
+  function createBall(time, svg, parent, index, recursiveDepth, forcedPos, maxRadius) {
     var ball, children, element, color, radius, angle, distance, posX, posY, velX, velY, mass, shineGradientTransitions,
-      shineElement, i, childCount;
+      shineElement, i, childCount, spawnNewBallsOnPop, radiusGrowthRate;
 
     children = null;
 
     if (parent) {
-      radius = util.getRandom(PARAMS.CHILD.MIN_SIZE_RATIO, PARAMS.CHILD.MAX_SIZE_RATIO) * parent.radius;
+      if (maxRadius) {
+        maxRadius = Math.min(maxRadius, PARAMS.CHILD.MAX_SIZE_RATIO * parent.radius);
+        radius = util.getRandom(PARAMS.CHILD.MIN_SIZE_RATIO * parent.radius, maxRadius);
+      } else {
+        radius = util.getRandom(PARAMS.CHILD.MIN_SIZE_RATIO, PARAMS.CHILD.MAX_SIZE_RATIO) * parent.radius;
+      }
       angle = util.getRandom(0, TWO_PI);
       distance = util.getRandom(0, radius);
-      posX = parent.pos.x + distance * Math.cos(angle);
-      posY = parent.pos.y + distance * Math.sin(angle);
+      if (forcedPos) {
+        posX = forcedPos.x;
+        posY = forcedPos.y;
+      } else {
+        posX = parent.pos.x + distance * Math.cos(angle);
+        posY = parent.pos.y + distance * Math.sin(angle);
+      }
       velX = util.getRandom(PARAMS.CHILD.MIN_VELOCITY_RATIO, PARAMS.CHILD.MAX_VELOCITY_RATIO) * parent.vel.x;
       velY = util.getRandom(PARAMS.CHILD.MIN_VELOCITY_RATIO, PARAMS.CHILD.MAX_VELOCITY_RATIO) * parent.vel.y;
     } else {
-      radius = util.getRandom(PARAMS.BASE.MIN_RADIUS, PARAMS.BASE.MAX_RADIUS);
-      posX = viewport.width / 2;
-      posY = viewport.height / 2;
+      if (maxRadius) {
+        maxRadius = Math.min(maxRadius, PARAMS.BASE.MAX_RADIUS);
+        radius = util.getRandom(PARAMS.BASE.MIN_RADIUS, maxRadius);
+      } else {
+        radius = util.getRandom(PARAMS.BASE.MIN_RADIUS, PARAMS.BASE.MAX_RADIUS);
+      }
+      if (forcedPos) {
+        posX = forcedPos.x;
+        posY = forcedPos.y;
+      } else {
+        posX = viewport.width / 2;
+        posY = viewport.height / 2;
+      }
       velX = util.getRandom(PARAMS.BASE.MIN_VELOCITY, PARAMS.BASE.MAX_VELOCITY);
       velY = util.getRandom(PARAMS.BASE.MIN_VELOCITY, PARAMS.BASE.MAX_VELOCITY);
     }
     color = colorShifter.createNewColor();
     mass = util.getRandom(PARAMS.MIN_DENSITY, PARAMS.MAX_DENSITY) * Math.PI * radius * radius;
+
+    spawnNewBallsOnPop = PARAMS.POPPING_ON && index % PARAMS.POP.NEW_BALL_SPAWN_COUNT === 0;
+
+    radiusGrowthRate = PARAMS.GROWING_ON ?
+      util.getRandom(PARAMS.MIN_RADIUS_GROWTH_RATE, PARAMS.MAX_RADIUS_GROWTH_RATE) : 0;
 
     element = document.createElementNS(SVG_NAMESPACE, 'ellipse');
     svg.appendChild(element);
@@ -333,6 +376,8 @@
       element: element,
       iridescenceTransitions: shineGradientTransitions.iridescenceTransitions,
       specularityTransitions: shineGradientTransitions.specularityTransitions,
+      spawnNewBallsOnPop: spawnNewBallsOnPop,
+      radiusGrowthRate: radiusGrowthRate,
       color: {
         startTime: time,
         endTime: time,
@@ -369,12 +414,34 @@
       children = [];
       childCount = util.getRandom(PARAMS.CHILD.MIN_BALL_COUNT, PARAMS.CHILD.MAX_BALL_COUNT);
       for (i = 0; i < childCount; i++) {
-        children[i] = createBall(time, svg, ball, i, recursiveDepth);
+        children[i] = createBall(time, svg, ball, i, recursiveDepth, null, null);
       }
       ball.children = children;
     }
 
     return ball;
+  }
+
+  function removeBall(ball, relativeBalls) {
+    var i, count;
+
+    // Update the other balls indices
+    for (i = ball.index + 1, count = relativeBalls.length; i < count; i++) {
+      relativeBalls[i].index--;
+    }
+
+    // Remove this ball
+    relativeBalls.splice(ball.index, 1);
+    svg.removeChild(ball.element);
+    ball.iridescenceTransitions.forEach(cleanUpGradientDOMElements);
+    ball.specularityTransitions.forEach(cleanUpGradientDOMElements);
+
+    function cleanUpGradientDOMElements(gradientTransition) {
+      gradientTransition.gradient.removeChild(gradientTransition.stop1);
+      gradientTransition.gradient.removeChild(gradientTransition.stop2);
+      svgDefs.removeChild(gradientTransition.gradient);
+      svg.removeChild(gradientTransition.element);
+    }
   }
 
   // --- NOTES ABOUT MY COLLISION ALGORITHM: --- //
@@ -383,9 +450,12 @@
   //   moment of intersection occurred between timesteps. My simple and efficient solution to this problem, is to
   //   position one of the balls exactly on the edge of the other (or the wall), and to then calculate the resulting
   //   properties from the collision.
-  function handleBallMotion(ball, time, deltaTime) {
-    var newPos, maxPosX, maxPosY, newVel, distance, maxDistance, collisionAngle, offset, relativeBalls, i, velocities, count,
-        ballsAreNearing, relativeVelocity, coaxialVector, speeds, squishHandledPositioning, wasCollisionWithWall;
+  function handleBallMotion(ball, time, deltaTime, relativeBalls) {
+    var newPos, maxPosX, maxPosY, oldVel, newVel, distance, maxDistance, collisionAngle, offset, i, velocities, count,
+      ballsAreNearing, relativeVelocity, coaxialVector, speeds, squishHandledPositioning, wasCollisionWithWall,
+      otherOldVel, removed;
+
+    oldVel = { x: ball.vel.x, y: ball.vel.y };
 
     // Account for acceleration and velocity
     offset = {};
@@ -401,9 +471,7 @@
 
     // --- Handle collisions with other balls --- //
     if (PARAMS.INTER_BALL_COLLISIONS_ON) {
-      relativeBalls = ball.parent ? ball.parent.children : balls;
-      count = relativeBalls.length;
-      for (i = ball.index + 1; i < count; i++) {
+      for (i = ball.index + 1, count = relativeBalls.length; i < count; i++) {
         distance = util.getDistance(newPos.x, newPos.y, relativeBalls[i].pos.x, relativeBalls[i].pos.y);
         // Is there overlap between the balls?
         if (distance < ball.radius + relativeBalls[i].radius) {
@@ -412,6 +480,8 @@
           coaxialVector = util.vectorDifference(relativeBalls[i].pos, newPos);
           ballsAreNearing = util.dotProduct(relativeVelocity, coaxialVector) > 0;
           if (ballsAreNearing) {
+            otherOldVel = { x: relativeBalls[i].vel.x, y: relativeBalls[i].vel.y };
+
             // Calculate some properties of the collision
             collisionAngle = Math.atan2(relativeBalls[i].pos.y - newPos.y, relativeBalls[i].pos.x - newPos.x);
             velocities = util.inellasticCollision(
@@ -426,6 +496,8 @@
             // Squish the other ball
             squishHandledPositioning = handleSquish(relativeBalls[i], false, collisionAngle + Math.PI, velocities && velocities.tangVelocity2, velocities && velocities.perpSpeedI2, velocities && velocities.perpSpeedF2, time, deltaTime, false);
             saveNewBallParams(relativeBalls[i], squishHandledPositioning, relativeBalls[i].pos, velocities.vf2);
+            removed = handlePop(relativeBalls[i], otherOldVel, relativeBalls[i].vel, relativeBalls, time, false);
+
             break;
           }
         }
@@ -511,6 +583,42 @@
 
     squishHandledPositioning = handleSquish(ball, wasCollisionWithWall, collisionAngle, velocities && velocities.tangVelocity1, velocities && velocities.perpSpeedI1, velocities && velocities.perpSpeedF1, time, deltaTime, true);
     saveNewBallParams(ball, squishHandledPositioning, newPos, newVel);
+    removed = handlePop(ball, oldVel, ball.vel, relativeBalls, time, false);
+
+    return removed;
+  }
+
+  function handlePop(ball, oldVel, newVel, relativeBalls, time, forcePop) {
+    var i, newBall, parentHalfVel, maxRadius;
+
+    if (PARAMS.POPPING_ON) {
+      if (forcePop ||
+          ball.radius > PARAMS.POP.RADIUS_THRESHOLD ||
+          util.magnitude(util.vectorDifference(newVel, oldVel)) *
+            ball.radius >= PARAMS.POP.VELOCITY_CHANGE_MAGNITUDE_TIMES_RADIUS_THRESHOLD) {
+        removeBall(ball, relativeBalls);
+
+        // Spawn new balls?
+        if (ball.spawnNewBallsOnPop) {
+          parentHalfVel = util.scalarVectorProduct(util.magnitude(newVel) * PARAMS.POP.NEW_BALL_SPEED_RATIO, util.normalize(newVel));
+          maxRadius = ball.radius * PARAMS.POP.NEW_BALL_MAX_RADIUS_RATIO;
+          for (i = 0; i < PARAMS.POP.NEW_BALL_SPAWN_COUNT; i++) {
+            newBall = createBall(time - 1, svg, ball.parent, relativeBalls.length, PARAMS.BASE.RECURSIVE_DEPTH, ball.pos, maxRadius); // TODO: this assumes that "popping" will only be handled for top-level balls; if not, then change this
+            relativeBalls.push(newBall);
+
+            // Base the new ball's position and velocity off of the parent
+            newBall.vel = util.vectorAddition(newBall.vel, parentHalfVel);
+          }
+        }
+
+        // Push nearby balls
+        // TODO: look at applyTouchSpeedChange
+
+        return true;
+      }
+    }
+
+    return false;
   }
 
   function saveNewBallParams(ball, squishHandledPositioning, newPos, newVel) {
@@ -608,7 +716,7 @@
   }
 
   function applyBallParams(ball) {
-    var posX, posY, deltaR;
+    var posX, posY, deltaR, rx;
 
     posX = ball.pos.x;
     posY = ball.pos.y;
@@ -616,13 +724,16 @@
       deltaR = ball.radius - ball.squish.currentRx;
       posX += deltaR * Math.cos(ball.squish.rotation);
       posY += deltaR * Math.sin(ball.squish.rotation);
+      rx = ball.squish.currentRx;
+    } else {
+      rx = ball.radius;
     }
 
     ball.element.style.opacity = PARAMS.COLOR.OPACITY;
     ball.element.setAttribute('fill', util.colorToString(ball.color.current));
     ball.element.setAttribute('cx', posX);
     ball.element.setAttribute('cy', posY);
-    ball.element.setAttribute('rx', ball.squish.currentRx);
+    ball.element.setAttribute('rx', rx);
     ball.element.setAttribute('ry', ball.radius);
     ball.element.setAttribute('transform', 'rotate(' + ball.rotation + ' ' + posX + ' ' + posY + ')');
 
@@ -630,7 +741,7 @@
       // Update the svg element that holds the gradient
       gradientTransition.element.setAttribute('cx', posX);
       gradientTransition.element.setAttribute('cy', posY);
-      gradientTransition.element.setAttribute('rx', ball.squish.currentRx);
+      gradientTransition.element.setAttribute('rx', rx);
       gradientTransition.element.setAttribute('ry', ball.radius);
       gradientTransition.element.setAttribute('transform', 'rotate(' + ball.rotation + ' ' + posX + ' ' + posY + ')');
     });
@@ -639,18 +750,40 @@
       // Update the svg element that holds the gradient
       gradientTransition.element.setAttribute('cx', posX);
       gradientTransition.element.setAttribute('cy', posY);
-      gradientTransition.element.setAttribute('rx', ball.squish.currentRx);
+      gradientTransition.element.setAttribute('rx', rx);
       gradientTransition.element.setAttribute('ry', ball.radius);
       gradientTransition.element.setAttribute('transform', 'rotate(' + ball.rotation + ' ' + posX + ' ' + posY + ')');
     });
   }
 
   function onTouch(touchPos) {
-    var time = Date.now();
-    balls.forEach(function(ball) {
-      applyTouchSpeedChange(ball, touchPos, time);
-    });
+    var time, intersectedBall;
+
+    time = Date.now();
+    intersectedBall = getIntersectedBall(touchPos);
+
+    if (intersectedBall) {
+      handlePop(intersectedBall, intersectedBall.vel, intersectedBall.vel, balls, time, true);
+    } else {
+      balls.forEach(function(ball) {
+        applyTouchSpeedChange(ball, touchPos, time);
+      });
+    }
+
     touchAnimator.newTouch(touchPos, time);
+  }
+
+  function getIntersectedBall(touchPos) {
+    var i, count, distance;
+
+    for (i = 0, count = balls.length; i < count; i++) {
+      distance = util.getDistance(touchPos.x, touchPos.y, balls[i].pos.x, balls[i].pos.y);
+      if (distance < balls[i].radius) {
+        return balls[i];
+      }
+    }
+
+    return null;
   }
 
   function applyTouchSpeedChange(ball, touchPos, time) {
@@ -990,7 +1123,7 @@
       iridescenceTransitions = [];
       specularityTransitions = [];
 
-      if (PARAMS.SHINE.ON) {
+      if (PARAMS.SHINE_ON) {
         // The ball circumference gradient
         iridescenceTransitions.push(createBallEdgeGradientTransition(time));
 
@@ -1183,7 +1316,7 @@
     function updateShine(iridescenceTransitions, specularityTransitions, time, rotation) {
       var radius, center;
 
-      if (PARAMS.SHINE.ON) { // TODO: move this test elsewhere (and in general, think of where to put tests like this)
+      if (PARAMS.SHINE_ON) { // TODO: move this test elsewhere (and in general, think of where to put tests like this)
         iridescenceTransitions.forEach(function(iridescenceTransition) {
           handleIridescenceTransitionCompletion(iridescenceTransition, 'hue', time);
           handleIridescenceTransitionCompletion(iridescenceTransition, 'opacity', time);
@@ -1702,9 +1835,7 @@
  ***** - move all of the color-transition code into its own separate module
  **** - create three artificial taps at equidistant locations off-center at the start (PARAMS.INITIAL_TAPS_ON)
  *** - (PARAMS.BUBBLES_GROW_ON)
- *** - (PARAMS.SHINE_ON)
-      - offset the rotations of the inner gradients when rotating a ball because of squishing??
- *** - (PARAMS.POPPING_ON, PARAMS.POP_SPEED, PARAMS.MIN_POP_CHILDREN, PARAMS.MAX_POP_CHILDREN)
+ *** - (PARAMS.POPPING_ON)
      - when tapping within the bounds of a bubble, pop it automatically
      - popping causes nearby bubbles to increase in speed away from the pop
      - larger bubbles have more force when popping
