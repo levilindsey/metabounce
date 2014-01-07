@@ -12,8 +12,8 @@
     INDEPENDENT_CHILD_MOVEMENT_ON: false,
     PARENT_CHILD_MOMENTUM_TRANSFER_ON: false,
     SHINE_ON: true,
-    POPPING_ON: true,// TODO:
-    GROWING_ON: true,// TODO:
+    POPPING_ON: true,
+    GROWING_ON: true,
 
     GRAVITATIONAL_ACCELERATION: 0.00001, // pixels / millis^2
 
@@ -60,7 +60,7 @@
       NEW_BALL_SPEED_RATIO: 0.35,
       NEW_BALL_MAX_RADIUS_RATIO: 0.6,
       ANIMATION_TO_BALL_RADIUS_RATIO: 1.7,
-      POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO: 1.5,
+      POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO: 1.8,
       WHOOSH_OPACITY_RATIO: 0.2
     },
     TOUCH: {
@@ -111,7 +111,7 @@
         MAX_RADIUS: 40,
 
         SATURATION: 100, // percentage
-        LIGHTNESS: 60, // percentage // TODO: change this to use a min/max?
+        LIGHTNESS: 60, // percentage
 
         MIN_CENTER_RADIUS: 0, // from 0 to 50
         MAX_CENTER_RADIUS: 45, // from 0 to 50
@@ -135,7 +135,7 @@
         MAX_RADIUS: 15,
 
         SATURATION: 100, // percentage
-        LIGHTNESS: 90, // percentage // TODO: change this to use a min/max?
+        LIGHTNESS: 90, // percentage
 
         MIN_CENTER_RADIUS: 0, // from 0 to 50
         MAX_CENTER_RADIUS: 50, // from 0 to 50
@@ -188,13 +188,13 @@
         DURATION: 210, // millis
         EASING_FUNCTION: 'easeInQuad',
         END_RADIUS_RATIO: 0.33,
-        DOT_DENSITY: 0.9, // from 0 to 1
+        DOT_DENSITY: 1.0,
         START_OPACITY: 0.5, // from 0 to 1
         END_OPACITY: 0.05,
         SATURATION: 20, // percentage
         LIGHTNESS: 40, // percentage
         DOT_WIDTH_EASING_FUNCTION: 'easeOutQuad',
-        DOT_HALF_WIDTH_START: 7,
+        DOT_HALF_WIDTH_START: 9,
         DOT_HALF_WIDTH_END: 1,
         DOT_HEIGHT_EASING_FUNCTION: 'easeInQuad',
         DOT_HALF_HEIGHT_START: 1,
@@ -258,42 +258,104 @@
   }
 
   function animationLoop() {
-    var currentTime, deltaTime, i;
+    var currentTime, deltaTime;
 
     currentTime = Date.now();
     deltaTime = currentTime - previousTime;
 
     colorShifter.update(currentTime);
     touchAnimator.update(currentTime);
-
-    for (i = 0; i < balls.length; i++) {
-      updateBall(balls[i], currentTime, deltaTime, balls);
-    }
+    updateBalls(balls, currentTime, deltaTime);
 
     previousTime = currentTime;
     util.myRequestAnimationFrame(animationLoop);
   }
 
-  function updateBall(ball, time, deltaTime, relativeBalls) {
-    var i, removed;
+  function updateBalls(balls, time, deltaTime) {
+    var newBallSets;
 
-    if (PARAMS.GROWING_ON) {
-      ball.radius += ball.radiusGrowthRate * deltaTime;
-    }
+    updateBallsOldVelocities(balls);
+    updateBallsRadii(balls, deltaTime);
+    updateBallsMotions(balls, time, deltaTime);
+    newBallSets = handleBallsPops(balls, time);
+    updateBallsColors(balls, time);
+    applyBallsParams(balls);
+    // TODO: I probably want to reincorporate all of these functions back into a single loop, and then merge the collections returned from handlePop back into the main collection afterward, but would these functions still work for recursion? (do a speed comparison between the two?) (or just google whether multiple loops would hurt?)
 
-    removed = handleBallMotion(ball, time, deltaTime, relativeBalls);
-    if (!removed) {
-      handleBallColorTransition(ball, time);
-      colorShifter.updateShine(ball.iridescenceTransitions, ball.specularityTransitions, time, ball.squish.rotation);
-      applyBallParams(ball);
+    // Recurse
+    balls.forEach(function(ball) {
+      if (ball.children) {
+        updateBalls(ball.children, time, deltaTime);
+      }
+    });
+
+    addNewBallSets(newBallSets, balls);
+  }
+
+  function updateBallsOldVelocities(balls) {
+    balls.forEach(function(ball) {
+      ball.previousVel.x = ball.vel.x;
+      ball.previousVel.y = ball.vel.y;
 
       if (ball.children) {
-        // Recursively update each of the children balls
-        for (i = 0; i < ball.children.length; i++) {
-          updateBall(ball.children[i], time, deltaTime, ball.children);
-        }
+        updateBallsOldVelocities(ball.children);
+      }
+    });
+  }
+
+  function updateBallsRadii(balls, deltaTime) {
+    balls.forEach(function(ball) {
+      if (PARAMS.GROWING_ON) {
+        ball.radius += ball.radiusGrowthRate * deltaTime;
+      }
+    });
+  }
+
+  function updateBallsMotions(balls, time, deltaTime) {
+    balls.forEach(function(ball) {
+      handleBallMotion(ball, time, deltaTime, balls);
+    });
+  }
+
+  function handleBallsPops(balls, time) {
+    var i, newBallSets, newBallSet;
+
+    newBallSets = [];
+
+    for (i = 0; i < balls.length; i++) {
+      newBallSet = handlePop(balls[i], balls, time, false);
+      if (newBallSet) {
+        newBallSets.push(newBallSet);
+        i--;
       }
     }
+
+    return newBallSets;
+  }
+
+  function updateBallsColors(balls, time) {
+    balls.forEach(function(ball) {
+      handleBallColorTransition(ball, time);
+    });
+  }
+
+  function applyBallsParams(balls) {
+    balls.forEach(function(ball) {
+      applyBallParams(ball);
+    });
+  }
+
+  function addNewBallSets(newBallSets, balls) {
+    newBallSets.forEach(function(newBallSet) {
+      addNewBallSet(newBallSet, balls);
+    });
+  }
+
+  function addNewBallSet(newBallSet, balls) {
+    newBallSet.forEach(function(ball) {
+      ball.index = balls.length;
+      balls.push(ball);
+    });
   }
 
   function createMiscElements() {
@@ -401,6 +463,7 @@
       specularityTransitions: shineGradientTransitions.specularityTransitions,
       spawnNewBallsOnPop: spawnNewBallsOnPop,
       radiusGrowthRate: radiusGrowthRate,
+      recursiveDepth: recursiveDepth,
       color: {
         startTime: time,
         endTime: time,
@@ -426,6 +489,10 @@
         x: velX,
         y: velY
       },
+      previousVel: {
+        x: velX,
+        y: velY
+      },
       mass: mass
     };
 
@@ -445,19 +512,27 @@
     return ball;
   }
 
-  function removeBall(ball, relativeBalls) {
+  function removeBall(ball, balls) {
     var i, count;
 
-    // Update the other balls indices
-    for (i = ball.index + 1, count = relativeBalls.length; i < count; i++) {
-      relativeBalls[i].index--;
+    if (balls) {
+      // Update the other balls indices
+      for (i = ball.index + 1, count = balls.length; i < count; i++) {
+        balls[i].index--;
+      }
+      balls.splice(ball.index, 1);
     }
 
-    // Remove this ball
-    relativeBalls.splice(ball.index, 1);
     svg.removeChild(ball.element);
     ball.iridescenceTransitions.forEach(cleanUpGradientDOMElements);
     ball.specularityTransitions.forEach(cleanUpGradientDOMElements);
+
+    // Recursively remove any child balls
+    if (ball.children) {
+      ball.children.forEach(function(child) {
+        removeBall(child, null);
+      });
+    }
 
     function cleanUpGradientDOMElements(gradientTransition) {
       gradientTransition.gradient.removeChild(gradientTransition.stop1);
@@ -473,12 +548,9 @@
   //   moment of intersection occurred between timesteps. My simple and efficient solution to this problem, is to
   //   position one of the balls exactly on the edge of the other (or the wall), and to then calculate the resulting
   //   properties from the collision.
-  function handleBallMotion(ball, time, deltaTime, relativeBalls) {
-    var newPos, maxPosX, maxPosY, oldVel, newVel, distance, maxDistance, collisionAngle, offset, i, velocities, count,
-      ballsAreNearing, relativeVelocity, coaxialVector, speeds, squishHandledPositioning, wasCollisionWithWall,
-      otherOldVel, removed;
-
-    oldVel = { x: ball.vel.x, y: ball.vel.y };
+  function handleBallMotion(ball, time, deltaTime, balls) {
+    var newPos, maxPosX, maxPosY, newVel, distance, maxDistance, collisionAngle, offset, i, velocities, count,
+      ballsAreNearing, relativeVelocity, coaxialVector, speeds, squishHandledPositioning, wasCollisionWithWall;
 
     // Account for acceleration and velocity
     offset = {};
@@ -494,22 +566,20 @@
 
     // --- Handle collisions with other balls --- //
     if (PARAMS.INTER_BALL_COLLISIONS_ON) {
-      for (i = ball.index + 1, count = relativeBalls.length; i < count; i++) {
-        distance = util.getDistance(newPos.x, newPos.y, relativeBalls[i].pos.x, relativeBalls[i].pos.y);
+      for (i = ball.index + 1, count = balls.length; i < count; i++) {
+        distance = util.getDistance(newPos.x, newPos.y, balls[i].pos.x, balls[i].pos.y);
         // Is there overlap between the balls?
-        if (distance < ball.radius + relativeBalls[i].radius) {
+        if (distance < ball.radius + balls[i].radius) {
           // Are the balls actually nearing each other?
-          relativeVelocity = util.vectorDifference(newVel, relativeBalls[i].vel);
-          coaxialVector = util.vectorDifference(relativeBalls[i].pos, newPos);
+          relativeVelocity = util.vectorDifference(newVel, balls[i].vel);
+          coaxialVector = util.vectorDifference(balls[i].pos, newPos);
           ballsAreNearing = util.dotProduct(relativeVelocity, coaxialVector) > 0;
           if (ballsAreNearing) {
-            otherOldVel = { x: relativeBalls[i].vel.x, y: relativeBalls[i].vel.y };
-
             // Calculate some properties of the collision
-            collisionAngle = Math.atan2(relativeBalls[i].pos.y - newPos.y, relativeBalls[i].pos.x - newPos.x);
+            collisionAngle = Math.atan2(balls[i].pos.y - newPos.y, balls[i].pos.x - newPos.x);
             velocities = util.inellasticCollision(
                 newPos, newVel, ball.mass,
-                relativeBalls[i].pos, relativeBalls[i].vel, relativeBalls[i].mass);
+              balls[i].pos, balls[i].vel, balls[i].mass);
 
             // Record the new velocity
             newVel = velocities.vf1;
@@ -517,9 +587,8 @@
             wasCollisionWithWall = false;
 
             // Squish the other ball
-            squishHandledPositioning = handleSquish(relativeBalls[i], false, collisionAngle + Math.PI, velocities && velocities.tangVelocity2, velocities && velocities.perpSpeedI2, velocities && velocities.perpSpeedF2, time, deltaTime, false);
-            saveNewBallParams(relativeBalls[i], squishHandledPositioning, relativeBalls[i].pos, velocities.vf2);
-            removed = handlePop(relativeBalls[i], otherOldVel, relativeBalls[i].vel, relativeBalls, time, false);
+            squishHandledPositioning = handleSquish(balls[i], false, collisionAngle + Math.PI, velocities && velocities.tangVelocity2, velocities && velocities.perpSpeedI2, velocities && velocities.perpSpeedF2, time, deltaTime, false);
+            saveNewBallParams(balls[i], squishHandledPositioning, balls[i].pos, velocities.vf2);
 
             break;
           }
@@ -606,45 +675,43 @@
 
     squishHandledPositioning = handleSquish(ball, wasCollisionWithWall, collisionAngle, velocities && velocities.tangVelocity1, velocities && velocities.perpSpeedI1, velocities && velocities.perpSpeedF1, time, deltaTime, true);
     saveNewBallParams(ball, squishHandledPositioning, newPos, newVel);
-    removed = handlePop(ball, oldVel, ball.vel, relativeBalls, time, false);
-
-    return removed;
   }
 
-  function handlePop(ball, oldVel, newVel, relativeBalls, time, forcePop) {
-    var i, newBall, parentHalfVel, maxRadius, maxSpeedChangeFromPush;
+  function handlePop(ball, balls, time, forcePop) {
+    var i, newBall, parentHalfVel, maxRadius, maxSpeedChangeFromPush, newBallSet;
+
+    newBallSet = null;
 
     if (PARAMS.POPPING_ON) {
       if ((forcePop ||
             ball.radius > PARAMS.POP.RADIUS_UPPER_THRESHOLD ||
-            util.magnitude(util.vectorDifference(newVel, oldVel)) *
+            util.magnitude(util.vectorDifference(ball.vel, ball.previousVel)) *
               ball.radius >= PARAMS.POP.VELOCITY_CHANGE_MAGNITUDE_TIMES_RADIUS_THRESHOLD) &&
           ball.radius > PARAMS.POP.RADIUS_LOWER_THRESHOLD) {
-        removeBall(ball, relativeBalls);
-
-        maxSpeedChangeFromPush = PARAMS.TOUCH.MAX_SPEED_CHANGE * PARAMS.POP.POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO * ball.radius / PARAMS.POP.RADIUS_UPPER_THRESHOLD;
-        pushBallsAway(ball.pos, maxSpeedChangeFromPush, balls, time);
-
         // Spawn new balls?
         if (ball.spawnNewBallsOnPop) {
-          parentHalfVel = util.scalarVectorProduct(util.magnitude(newVel) * PARAMS.POP.NEW_BALL_SPEED_RATIO, util.normalize(newVel));
+          newBallSet = [];
+          parentHalfVel = util.scalarVectorProduct(util.magnitude(ball.vel) * PARAMS.POP.NEW_BALL_SPEED_RATIO, util.normalize(ball.vel));
           maxRadius = ball.radius * PARAMS.POP.NEW_BALL_MAX_RADIUS_RATIO;
           for (i = 0; i < PARAMS.POP.NEW_BALL_SPAWN_COUNT; i++) {
-            newBall = createBall(time - 1, svg, ball.parent, relativeBalls.length, PARAMS.BASE.RECURSIVE_DEPTH, ball.pos, maxRadius); // TODO: this assumes that "popping" will only be handled for top-level balls; if not, then change this
-            relativeBalls.push(newBall);
+            newBall = createBall(time - 1, svg, ball.parent, i, ball.recursiveDepth, ball.pos, maxRadius);
+            newBallSet.push(newBall);
 
             // Base the new ball's position and velocity off of the parent
             newBall.vel = util.vectorAddition(newBall.vel, parentHalfVel);
           }
         }
 
-        touchAnimator.newPop(ball, time);
+        removeBall(ball, balls);
 
-        return true;
+        maxSpeedChangeFromPush = PARAMS.TOUCH.MAX_SPEED_CHANGE * PARAMS.POP.POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO * ball.radius / PARAMS.POP.RADIUS_UPPER_THRESHOLD;
+        pushBallsAway(ball.pos, maxSpeedChangeFromPush, balls, time);
+
+        touchAnimator.newPop(ball, time);
       }
     }
 
-    return false;
+    return newBallSet;
   }
 
   function saveNewBallParams(ball, squishHandledPositioning, newPos, newVel) {
@@ -783,13 +850,16 @@
   }
 
   function onTouch(touchPos) {
-    var time, intersectedBall;
+    var time, intersectedBall, newBallSet;
 
     time = Date.now();
     intersectedBall = getIntersectedBall(touchPos);
 
     if (intersectedBall) {
-      handlePop(intersectedBall, intersectedBall.vel, intersectedBall.vel, balls, time, true);
+      newBallSet = handlePop(intersectedBall, balls, time, true);
+      if (newBallSet) {
+        addNewBallSet(newBallSet, balls);
+      }
     } else {
       pushBallsAway(touchPos, PARAMS.TOUCH.MAX_SPEED_CHANGE, balls, time);
       touchAnimator.newTouch(touchPos, time);
@@ -809,10 +879,17 @@
     return null;
   }
 
-  function pushBallsAway(touchPos, maxSpeedChange, relativeBalls, time) {
-    relativeBalls.forEach(function(ball) {
+  function pushBallsAway(touchPos, maxSpeedChange, balls, time) {
+    var newBallSets;
+
+    updateBallsOldVelocities(balls);
+
+    balls.forEach(function(ball) {
       applyTouchSpeedChange(ball, touchPos, maxSpeedChange, time);
     });
+
+    newBallSets = handleBallsPops(balls, time);
+    addNewBallSets(newBallSets, balls);
   }
 
   function applyTouchSpeedChange(ball, touchPos, maxSpeedChange, time) {
@@ -826,6 +903,7 @@
       weight2 = util.applyEasing(weight2, PARAMS.TOUCH.EFFECT_EASING_FUNCTION);
       weight1 = 1 - weight2;
       touchSpeedChange = util.getWeightedAverage(maxSpeedChange, 0, weight1, weight2);
+      // TODO: the touchSpeedChange should also take into account the mass of the ball
 
       // Apply the velocity vector change
       normalizedCoaxialVector = util.normalize(util.vectorDifference(ball.pos, touchPos));
@@ -855,6 +933,8 @@
     weight2 = util.applyEasing(weight2, PARAMS.COLOR.MINOR_EASING_FUNCTION);
     weight1 = 1 - weight2;
     ball.color.current = util.interpolateColors(ball.color.start, ball.color.end, weight1, weight2);
+
+    colorShifter.updateShine(ball.iridescenceTransitions, ball.specularityTransitions, time, ball.squish.rotation);
   }
 
   function createNewBallColorTransition(ball) {
@@ -945,19 +1025,19 @@
         this.stop1 = document.createElementNS(SVG_NAMESPACE, 'stop');
         this.stop1.setAttribute('offset', '0%');
         this.stop1.setAttribute('stop-color', PARAMS.ANIMATION.FLASH.START_COLOR);
-        this.stop1.setAttribute('stop-opacity', 1);
+        this.stop1.setAttribute('stop-opacity', '1');
         this.gradient.appendChild(this.stop1);
 
         this.stop2 = document.createElementNS(SVG_NAMESPACE, 'stop');
         this.stop2.setAttribute('offset', '100%');
         this.stop2.setAttribute('stop-color', PARAMS.ANIMATION.FLASH.START_COLOR);
-        this.stop2.setAttribute('stop-opacity', 0);
+        this.stop2.setAttribute('stop-opacity', '0');
         this.gradient.appendChild(this.stop2);
 
         this.circle = document.createElementNS(SVG_NAMESPACE, 'circle');
         this.circle.setAttribute('cx', touchPos.x);
         this.circle.setAttribute('cy', touchPos.y);
-        this.circle.setAttribute('r', PARAMS.ANIMATION.FLASH.START_RADIUS);
+        this.circle.setAttribute('r', PARAMS.ANIMATION.FLASH.START_RADIUS.toString());
         this.circle.setAttribute('fill', 'url(#' + this.gradient.id + ')');
         svg.appendChild(this.circle);
       }
@@ -1026,25 +1106,25 @@
         this.stop1 = document.createElementNS(SVG_NAMESPACE, 'stop');
         this.stop1.setAttribute('offset', '0%');
         this.stop1.setAttribute('stop-color', PARAMS.ANIMATION.WHOOSH.START_COLOR);
-        this.stop1.setAttribute('stop-opacity', 0);
+        this.stop1.setAttribute('stop-opacity', '0');
         this.gradient.appendChild(this.stop1);
 
         this.stop2 = document.createElementNS(SVG_NAMESPACE, 'stop');
         this.stop2.setAttribute('offset', PARAMS.ANIMATION.WHOOSH.STOP_2_PERCENTAGE + '%');
         this.stop2.setAttribute('stop-color', PARAMS.ANIMATION.WHOOSH.START_COLOR);
-        this.stop2.setAttribute('stop-opacity', 0);
+        this.stop2.setAttribute('stop-opacity', '0');
         this.gradient.appendChild(this.stop2);
 
         this.stop3 = document.createElementNS(SVG_NAMESPACE, 'stop');
         this.stop3.setAttribute('offset', '100%');
         this.stop3.setAttribute('stop-color', PARAMS.ANIMATION.WHOOSH.START_COLOR);
-        this.stop3.setAttribute('stop-opacity', this.startOpacity * PARAMS.ANIMATION.WHOOSH.STROKE_TO_GRADIENT_OPACITY_RATIO);
+        this.stop3.setAttribute('stop-opacity', (this.startOpacity * PARAMS.ANIMATION.WHOOSH.STROKE_TO_GRADIENT_OPACITY_RATIO).toString());
         this.gradient.appendChild(this.stop3);
 
         this.circle = document.createElementNS(SVG_NAMESPACE, 'circle');
         this.circle.setAttribute('cx', touchPos.x);
         this.circle.setAttribute('cy', touchPos.y);
-        this.circle.setAttribute('r', PARAMS.ANIMATION.WHOOSH.START_RADIUS);
+        this.circle.setAttribute('r', PARAMS.ANIMATION.WHOOSH.START_RADIUS.toString());
         this.circle.setAttribute('fill', 'url(#' + this.gradient.id + ')');
         this.circle.setAttribute('stroke', PARAMS.ANIMATION.WHOOSH.START_COLOR);
         this.circle.setAttribute('stroke-width', PARAMS.ANIMATION.WHOOSH.STROKE_WIDTH + 'px');
@@ -1071,7 +1151,7 @@
         this.circle.setAttribute('r', radius);
         this.stop2.setAttribute('stop-color', colorString);
         this.stop3.setAttribute('stop-color', colorString);
-        this.stop3.setAttribute('stop-opacity', opacity * PARAMS.ANIMATION.WHOOSH.STROKE_TO_GRADIENT_OPACITY_RATIO);
+        this.stop3.setAttribute('stop-opacity', (opacity * PARAMS.ANIMATION.WHOOSH.STROKE_TO_GRADIENT_OPACITY_RATIO).toString());
         this.circle.setAttribute('stroke', colorString);
         this.circle.setAttribute('stroke-opacity', opacity);
       }
@@ -1978,15 +2058,14 @@
 })();
 /*
  --- TODO --------------------------------------
- ****** - refactor the code
+ ***** - create three artificial taps at equidistant locations off-center at the start (PARAMS.INITIAL_TAPS_ON)
+ *** - the touchSpeedChange should also take into account the mass of the ball
+ ** - pop internal balls (PARAMS.POP.CHILD_RADIUS_RATIO_UPPER_THRESHOLD, PARAMS.POP.CHILD_RADIUS_RATIO_GROWTH)
+ ** - add blur/focus listeners to the window to prevent crazy-ball syndrome?
+      - can I just manually change the deltaTime when this happens? or will any of the functions break with the crazy long time param itself?
+ * - refactor the code
      - where I place if statements, so I prevent extra computations
      - re-package code, so that things are more clumped into modules, and functions do NOT need to reference external member variables whenever possible
- **** - create three artificial taps at equidistant locations off-center at the start (PARAMS.INITIAL_TAPS_ON)
- ** - add a simple GUI for all of the params (PARAMS.GUI_CONTROLS_ON)
- * - add blur/focus listeners to the window to prevent crazy-ball syndrome?
-    - can I just manually change the deltaTime when this happens? or will any of the functions break with the crazy long time param itself?
- * - fix the bug that causes the system to gain energy
- * - fix the bug that causes the parent balls to be wedged in the corner sometimes (and the children balls in the center of the window)
  --- LATER PROJECTS --------------------------------
  - create a couple copies of this project with different parameter settings
   - MetaBounce: Simple
