@@ -98,14 +98,14 @@
         GRADIENT_MOVES: true,
         GRADIENT_SIZE_CHANGES: true,
 
-        BORDER_GRADIENT_STOP_OFFSET: 60, // percentage
-        BORDER_GRADIENT_OPACITY_RATIO: 0.4,
+        BORDER_GRADIENT_STOP_OFFSET: 70, // percentage
+        BORDER_GRADIENT_OPACITY_RATIO: 0.3,
 
         MIN_TRANSITION_TIME: 3000,
         MAX_TRANSITION_TIME: 5000,
 
-        MIN_OPACITY: 0.01, // from 0 to 1
-        MAX_OPACITY: 0.17,
+        MIN_OPACITY: 0.0001, // from 0 to 1
+        MAX_OPACITY: 0.2,
 
         MIN_RADIUS: 25, // percentage
         MAX_RADIUS: 40,
