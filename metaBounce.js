@@ -61,7 +61,9 @@
       NEW_BALL_MAX_RADIUS_RATIO: 0.6,
       ANIMATION_TO_BALL_RADIUS_RATIO: 1.7,
       POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO: 1.8,
-      WHOOSH_OPACITY_RATIO: 0.2
+      WHOOSH_OPACITY_RATIO: 0.2,
+      SPEED_CHANGE_SIZE_MULTIPLIER_MAX: 8,
+        **;// TODO: add some easing functions here for the effect of the ball's size on the push strength given and received
     },
     TOUCH: {
       MAX_SPEED_CHANGE: 1.5, // pixel / millis
@@ -704,7 +706,7 @@
 
         removeBall(ball, balls);
 
-        maxSpeedChangeFromPush = PARAMS.TOUCH.MAX_SPEED_CHANGE * PARAMS.POP.POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO * ball.radius / PARAMS.POP.RADIUS_UPPER_THRESHOLD;
+        maxSpeedChangeFromPush = PARAMS.TOUCH.MAX_SPEED_CHANGE * PARAMS.POP.POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO * ball.radius / PARAMS.POP.RADIUS_UPPER_THRESHOLD;**;// TODO: add an easing fn here for when we calculate the effect of the ball's size on the strength of the push
         pushBallsAway(ball.pos, maxSpeedChangeFromPush, balls, time);
 
         touchAnimator.newPop(ball, time);
@@ -898,12 +900,16 @@
 
     distance = util.getDistance(touchPos.x, touchPos.y, ball.pos.x, ball.pos.y);
     if (distance < PARAMS.TOUCH.MAX_DISTANCE) {
-      // Calculate the strength of the touch
+      // Calculate the push strength according to the distance
       weight2 = distance / PARAMS.TOUCH.MAX_DISTANCE;
       weight2 = util.applyEasing(weight2, PARAMS.TOUCH.EFFECT_EASING_FUNCTION);
       weight1 = 1 - weight2;
       touchSpeedChange = util.getWeightedAverage(maxSpeedChange, 0, weight1, weight2);
-      // TODO: the touchSpeedChange should also take into account the mass of the ball
+
+      // Calculate the effect of the ball size on the push strength
+        SPEED_CHANGE_SIZE_MULTIPLIER_MAX
+      // TODO: larger balls should be pushed less and should push more
+        **;// TODO: add an easing fn
 
       // Apply the velocity vector change
       normalizedCoaxialVector = util.normalize(util.vectorDifference(ball.pos, touchPos));
@@ -2058,7 +2064,8 @@
 })();
 /*
  --- TODO --------------------------------------
- ***** - create three artificial taps at equidistant locations off-center at the start (PARAMS.INITIAL_TAPS_ON)
+ ***** - create a convenience function for the weighted avg calculations...
+ **** - create three artificial taps at equidistant locations off-center at the start (PARAMS.INITIAL_TAPS_ON)
  *** - the touchSpeedChange should also take into account the mass of the ball
  ** - pop internal balls (PARAMS.POP.CHILD_RADIUS_RATIO_UPPER_THRESHOLD, PARAMS.POP.CHILD_RADIUS_RATIO_GROWTH)
  ** - add blur/focus listeners to the window to prevent crazy-ball syndrome?
