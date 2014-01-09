@@ -63,7 +63,7 @@
       POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO: 1.8,
       WHOOSH_OPACITY_RATIO: 0.2,
       SPEED_CHANGE_SIZE_MULTIPLIER_MAX: 8,
-        **;// TODO: add some easing functions here for the effect of the ball's size on the push strength given and received
+      RADIUS_EFFECT_ON_PUSH_STRENGTH_EASING_FUNCTION: 'easeInOutQuad'
     },
     TOUCH: {
       MAX_SPEED_CHANGE: 1.5, // pixel / millis
@@ -680,7 +680,7 @@
   }
 
   function handlePop(ball, balls, time, forcePop) {
-    var i, newBall, parentHalfVel, maxRadius, maxSpeedChangeFromPush, newBallSet;
+    var i, newBall, parentHalfVel, maxRadius, maxSpeedChangeFromPush, newBallSet, weight1, weight2;
 
     newBallSet = null;
 
@@ -706,7 +706,10 @@
 
         removeBall(ball, balls);
 
-        maxSpeedChangeFromPush = PARAMS.TOUCH.MAX_SPEED_CHANGE * PARAMS.POP.POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO * ball.radius / PARAMS.POP.RADIUS_UPPER_THRESHOLD;**;// TODO: add an easing fn here for when we calculate the effect of the ball's size on the strength of the push
+        weight2 = ball.radius / PARAMS.POP.RADIUS_UPPER_THRESHOLD;
+        weight2 = util.applyEasing(weight2, PARAMS.POP.RADIUS_EFFECT_ON_PUSH_STRENGTH_EASING_FUNCTION);
+        weight1 = 1 - weight2;
+        maxSpeedChangeFromPush = util.getWeightedAverage(0, PARAMS.TOUCH.MAX_SPEED_CHANGE * PARAMS.POP.POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO, weight1, weight2);
         pushBallsAway(ball.pos, maxSpeedChangeFromPush, balls, time);
 
         touchAnimator.newPop(ball, time);
