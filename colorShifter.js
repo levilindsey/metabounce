@@ -250,38 +250,36 @@ var colorShifter = (function() {
   function updateShine(iridescenceTransitions, specularityTransitions, time, rotation) {
     var radius, center;
 
-    if (PARAMS.SHINE_ON) { // TODO: move this test elsewhere (and in general, think of where to put tests like this)
-      iridescenceTransitions.forEach(function(iridescenceTransition) {
-        handleIridescenceTransitionCompletion(iridescenceTransition, 'hue', time);
-        handleIridescenceTransitionCompletion(iridescenceTransition, 'opacity', time);
-        handleIridescenceTransitionCompletion(iridescenceTransition, 'radius', time);
-        handleIridescenceTransitionCompletion(iridescenceTransition, 'centerAngle', time);
-        handleIridescenceTransitionCompletion(iridescenceTransition, 'centerRadius', time);
-        handleIridescenceTransitionCompletion(iridescenceTransition, 'focusDeltaAngle', time);
-        handleIridescenceTransitionCompletion(iridescenceTransition, 'focusDeltaRadiusRatio', time);
+    iridescenceTransitions.forEach(function(iridescenceTransition) {
+      handleIridescenceTransitionCompletion(iridescenceTransition, 'hue', time);
+      handleIridescenceTransitionCompletion(iridescenceTransition, 'opacity', time);
+      handleIridescenceTransitionCompletion(iridescenceTransition, 'radius', time);
+      handleIridescenceTransitionCompletion(iridescenceTransition, 'centerAngle', time);
+      handleIridescenceTransitionCompletion(iridescenceTransition, 'centerRadius', time);
+      handleIridescenceTransitionCompletion(iridescenceTransition, 'focusDeltaAngle', time);
+      handleIridescenceTransitionCompletion(iridescenceTransition, 'focusDeltaRadiusRatio', time);
 
-        updateCurrentShineValue(iridescenceTransition, 'hue', time, true);
-        updateCurrentShineValue(iridescenceTransition, 'opacity', time, true);
-        radius = updateCurrentShineValue(iridescenceTransition, 'radius', time, true);
-        center = updateCurrentShineCenter(iridescenceTransition, time, rotation);
-        updateCurrentShineFocus(iridescenceTransition, radius, center, time, rotation);
-      });
-      specularityTransitions.forEach(function(specularityTransition) {
-        handleSpecularityTransitionCompletion(specularityTransition, 'hue', time);
-        handleSpecularityTransitionCompletion(specularityTransition, 'opacity', time);
-        handleSpecularityTransitionCompletion(specularityTransition, 'radius', time);
-        handleSpecularityTransitionCompletion(specularityTransition, 'centerAngle', time);
-        handleSpecularityTransitionCompletion(specularityTransition, 'centerRadius', time);
-        handleSpecularityTransitionCompletion(specularityTransition, 'focusDeltaAngle', time);
-        handleSpecularityTransitionCompletion(specularityTransition, 'focusDeltaRadiusRatio', time);
+      updateCurrentShineValue(iridescenceTransition, 'hue', time, true);
+      updateCurrentShineValue(iridescenceTransition, 'opacity', time, true);
+      radius = updateCurrentShineValue(iridescenceTransition, 'radius', time, true);
+      center = updateCurrentShineCenter(iridescenceTransition, time, rotation);
+      updateCurrentShineFocus(iridescenceTransition, radius, center, time, rotation);
+    });
+    specularityTransitions.forEach(function(specularityTransition) {
+      handleSpecularityTransitionCompletion(specularityTransition, 'hue', time);
+      handleSpecularityTransitionCompletion(specularityTransition, 'opacity', time);
+      handleSpecularityTransitionCompletion(specularityTransition, 'radius', time);
+      handleSpecularityTransitionCompletion(specularityTransition, 'centerAngle', time);
+      handleSpecularityTransitionCompletion(specularityTransition, 'centerRadius', time);
+      handleSpecularityTransitionCompletion(specularityTransition, 'focusDeltaAngle', time);
+      handleSpecularityTransitionCompletion(specularityTransition, 'focusDeltaRadiusRatio', time);
 
-        updateCurrentShineValue(specularityTransition, 'hue', time, false);
-        updateCurrentShineValue(specularityTransition, 'opacity', time, false);
-        radius = updateCurrentShineValue(specularityTransition, 'radius', time, false);
-        center = updateCurrentShineCenter(specularityTransition, time, rotation);
-        updateCurrentShineFocus(specularityTransition, radius, center, time, rotation);
-      });
-    }
+      updateCurrentShineValue(specularityTransition, 'hue', time, false);
+      updateCurrentShineValue(specularityTransition, 'opacity', time, false);
+      radius = updateCurrentShineValue(specularityTransition, 'radius', time, false);
+      center = updateCurrentShineCenter(specularityTransition, time, rotation);
+      updateCurrentShineFocus(specularityTransition, radius, center, time, rotation);
+    });
   }
 
   function handleIridescenceTransitionCompletion(shineTransitionObj, property, time) {
