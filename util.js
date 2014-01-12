@@ -134,6 +134,11 @@ var util = (function() {
     };
   }
 
+  function changeStartAndEndTimeFromBlur(transitionObj, timeLapse) {
+    transitionObj.startTime = timeLapse + transitionObj.startTime;
+    transitionObj.endTime = timeLapse + transitionObj.endTime;
+  }
+
   function getPageXY(element) {
     var cumulativeX = 0,
         cumulativeY = 0;
@@ -176,6 +181,7 @@ var util = (function() {
     vectorDifference: vectorDifference,
     vectorAddition: vectorAddition,
     normalize: normalize,
+    changeStartAndEndTimeFromBlur: changeStartAndEndTimeFromBlur,
     getPageXY: getPageXY,
     determineViewportDimensions: determineViewportDimensions,
     myRequestAnimationFrame: function(callback) {

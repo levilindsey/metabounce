@@ -2,20 +2,20 @@ var PARAMS = {
   // -------------------------------------------- //
   //            v   Play with me!!   v            //
   INTER_BALL_COLLISIONS_ON: true,
-  SQUISH_ON: true,
+  SQUISH_ON: false,
   INDEPENDENT_CHILD_MOVEMENT_ON: false,
   PARENT_CHILD_MOMENTUM_TRANSFER_ON: false,
   SHINE_ON: false,
-  POPPING_ON: false,
-  GROWING_ON: false,
+  POPPING_ON: true,
+  GROWING_ON: true,
 
-  GRAVITATIONAL_ACCELERATION: 0.001, // pixels / millis^2
+  GRAVITATIONAL_ACCELERATION: 0.00001, // pixels / millis^2
 
   MIN_DENSITY: 4.75,
   MAX_DENSITY: 5.25,
 
-  COEFF_OF_RESTITUTION: 1.0, // 0 = perfectly INELASTIC collision, 1 = perfectly ELASTIC collision
-  COEFF_OF_FRICTION: 0.00001,
+  COEFF_OF_RESTITUTION: 0.32, // 0 = perfectly INELASTIC collision, 1 = perfectly ELASTIC collision
+  COEFF_OF_FRICTION: 0.0001,
 
   MIN_SQUISHINESS: 0, // how much the ball compresses on impact (from 0 to 1)
   MAX_SQUISHINESS: 0.7,
@@ -24,17 +24,17 @@ var PARAMS = {
   INTRA_BALL_COLLISION_SQUISH_STRENGTH_COEFF: 0.9,
 
   BASE: {
-    BALL_COUNT: 4,
-    RECURSIVE_DEPTH: 0,
+    BALL_COUNT: 8,
+    RECURSIVE_DEPTH: 1,
 
     MIN_RADIUS: 20, // pixels
-    MAX_RADIUS: 70,
+    MAX_RADIUS: 100,
 
     MIN_VELOCITY: -0.46, // pixels/millis
     MAX_VELOCITY: 0.46,
 
-    MIN_RADIUS_GROWTH_RATE: 0.0005, // pixels/millis
-    MAX_RADIUS_GROWTH_RATE: 0.003 // pixels/millis
+    MIN_RADIUS_GROWTH_RATE: 0.005, // pixels/millis
+    MAX_RADIUS_GROWTH_RATE: 0.03 // pixels/millis
   },
   CHILD: {
     MIN_BALL_COUNT: 1,
@@ -46,7 +46,7 @@ var PARAMS = {
     MIN_VELOCITY_RATIO: 0.1,
     MAX_VELOCITY_RATIO: 0.5,
 
-    RADIUS_GROWTH_RATIO: 0.9
+    RADIUS_GROWTH_RATIO: 0.3
   },
   POP: {
     VELOCITY_CHANGE_MAGNITUDE_TIMES_RADIUS_THRESHOLD: 80, // pixels^2/millis
@@ -57,7 +57,7 @@ var PARAMS = {
 
     CHILD_RADIUS_RATIO_UPPER_THRESHOLD: 0.3,
 
-    NEW_BALL_SPAWN_COUNT: 3,
+    NEW_BALL_SPAWN_COUNT: 2,
     NEW_BALL_SPEED_RATIO: 0.35,
     NEW_BALL_MAX_RADIUS_RATIO: 0.6,
 
@@ -117,8 +117,8 @@ var PARAMS = {
       MIN_OPACITY: 0.0001, // from 0 to 1
       MAX_OPACITY: 0.2,
 
-      MIN_RADIUS: 25, // percentage
-      MAX_RADIUS: 40,
+      MIN_RADIUS: 30, // percentage
+      MAX_RADIUS: 50,
 
       SATURATION: 100, // percentage
       LIGHTNESS: 60, // percentage

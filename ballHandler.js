@@ -408,9 +408,9 @@ var ballHandler = (function() {
   }
 
   function handlePop(ball, balls, time, forcePop) {
-    var pop, i, newBall, parentHalfVel, maxRadius, maxSpeedChangeFromPush, newBallSet, weight1, weight2;
+    var pop, i, newBall, partialParentVel, maxRadius, maxSpeedChangeFromPush, newBallSet, weight1, weight2;
 
-    pop = false
+    pop = false;
     newBallSet = null;
 
     if (ball.parent) {
@@ -434,14 +434,14 @@ var ballHandler = (function() {
       // Spawn new balls?
       if (ball.spawnNewBallsOnPop) {
         newBallSet = [];
-        parentHalfVel = util.scalarVectorProduct(util.magnitude(ball.vel) * PARAMS.POP.NEW_BALL_SPEED_RATIO, util.normalize(ball.vel));
+        partialParentVel = util.scalarVectorProduct(util.magnitude(ball.vel) * PARAMS.POP.NEW_BALL_SPEED_RATIO, util.normalize(ball.vel));
         maxRadius = ball.radius * PARAMS.POP.NEW_BALL_MAX_RADIUS_RATIO;
         for (i = 0; i < PARAMS.POP.NEW_BALL_SPAWN_COUNT; i++) {
           newBall = createBall(time - 1, svg, ball.parent, i, ball.recursiveDepth, ball.pos, maxRadius);
           newBallSet.push(newBall);
 
           // Base the new ball's position and velocity off of the parent
-          newBall.vel = util.vectorAddition(newBall.vel, parentHalfVel);
+          newBall.vel = util.vectorAddition(newBall.vel, partialParentVel);
         }
       }
 
@@ -450,8 +450,8 @@ var ballHandler = (function() {
       weight2 = ball.radius / PARAMS.POP.RADIUS_UPPER_THRESHOLD;
       weight2 = util.applyEasing(weight2, PARAMS.POP.RADIUS_EFFECT_ON_PUSH_STRENGTH_EASING_FUNCTION);
       weight1 = 1 - weight2;
-      maxSpeedChangeFromPush = util.getWeightedAverage(0, PARAMS.TOUCH.MAX_SPEED_CHANGE * PARAMS.POP.POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO, weight1, weight2);
-      pushBallsAway(ball.pos, maxSpeedChangeFromPush, balls, time);
+      maxSpeedChangeFromPush = util.getWeightedAverage(0, POP_MAX_SPEED_CHANGE, weight1, weight2);
+      pushBallsAway(ball.pos, maxSpeedChangeFromPush, POP_MAX_DISTANCE, balls, time);
 
       touchAnimator.newPop(ball, time);
     }
@@ -602,15 +602,15 @@ var ballHandler = (function() {
     time = Date.now();
     intersectedBall = getIntersectedBall(touchPos);
 
-    if (intersectedBall) {
-      if (PARAMS.POPPING_ON) {
-        newBallSet = handlePop(intersectedBall, balls, time, true);
-        if (newBallSet) {
-          addNewBallSet(newBallSet, balls);
-        }
+    updateBallsOldVelocities(balls);
+
+    if (PARAMS.POPPING_ON && intersectedBall) {
+      newBallSet = handlePop(intersectedBall, balls, time, true);
+      if (newBallSet) {
+        addNewBallSet(newBallSet, balls);
       }
     } else {
-      pushBallsAway(touchPos, PARAMS.TOUCH.MAX_SPEED_CHANGE, balls, time);
+      pushBallsAway(touchPos, PARAMS.TOUCH.MAX_SPEED_CHANGE, PARAMS.TOUCH.MAX_DISTANCE, balls, time);
       touchAnimator.newTouch(touchPos, time);
     }
   }
@@ -628,27 +628,25 @@ var ballHandler = (function() {
     return null;
   }
 
-  function pushBallsAway(touchPos, maxSpeedChange, balls, time) {
+  function pushBallsAway(touchPos, maxSpeedChange, maxDistance, balls, time) {
     var newBallSets;
 
-    updateBallsOldVelocities(balls);
-
     balls.forEach(function(ball) {
-      applyTouchSpeedChange(ball, touchPos, maxSpeedChange, time);
+      applyTouchSpeedChange(ball, touchPos, maxSpeedChange, maxDistance, time);
     });
 
     newBallSets = handleBallsPops(balls, time);
     addNewBallSets(newBallSets, balls);
   }
 
-  function applyTouchSpeedChange(ball, touchPos, maxSpeedChange, time) {
+  function applyTouchSpeedChange(ball, touchPos, maxSpeedChange, maxDistance, time) {
     var distance, touchSpeedChange, touchVelocityChange, normalizedCoaxialVector, weight1, weight2, collisionAngle,
         tangVelocityAndPerpSpeed;
 
     distance = util.getDistance(touchPos.x, touchPos.y, ball.pos.x, ball.pos.y);
-    if (distance < PARAMS.TOUCH.MAX_DISTANCE) {
+    if (distance < maxDistance) {
       // Calculate the push strength according to the distance
-      weight2 = distance / PARAMS.TOUCH.MAX_DISTANCE;
+      weight2 = distance / maxDistance;
       weight2 = util.applyEasing(weight2, PARAMS.TOUCH.EFFECT_EASING_FUNCTION);
       weight1 = 1 - weight2;
       touchSpeedChange = util.getWeightedAverage(maxSpeedChange, 0, weight1, weight2);
@@ -710,9 +708,28 @@ var ballHandler = (function() {
     return time + (maxRadius - minRadius) / avgSpeed;
   }
 
+  function recoverFromWindowBlur(timeLapse) {
+    balls.forEach(function(ball) {
+      recoverBallFromWindowBlur(ball, timeLapse);
+    });
+  }
+
+  function recoverBallFromWindowBlur(ball, timeLapse) {
+    util.changeStartAndEndTimeFromBlur(ball.color, timeLapse);
+    util.changeStartAndEndTimeFromBlur(ball.squish, timeLapse);
+    colorShifter.recoverShineTransitionsFromWindowBlur(ball.iridescenceTransitions, timeLapse);
+    colorShifter.recoverShineTransitionsFromWindowBlur(ball.specularityTransitions, timeLapse);
+    if (ball.children) {
+      ball.children.forEach(function(child) {
+        recoverBallFromWindowBlur(child, timeLapse);
+      });
+    }
+  }
+
   return {
     init: init,
     update: update,
+    recoverFromWindowBlur: recoverFromWindowBlur,
     handleTouch: handleTouch
   }
 })();

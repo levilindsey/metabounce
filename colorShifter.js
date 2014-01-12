@@ -553,6 +553,24 @@ var colorShifter = (function() {
         weight2);
   }
 
+  function recoverFromWindowBlur(timeLapse) {
+    util.changeStartAndEndTimeFromBlur(transition.hue, timeLapse);
+    util.changeStartAndEndTimeFromBlur(transition.saturation, timeLapse);
+    util.changeStartAndEndTimeFromBlur(transition.lightness, timeLapse);
+  }
+
+  function recoverShineTransitionsFromWindowBlur(shineTransitions, timeLapse) {
+    shineTransitions.forEach(function(transitionObj) {
+      util.changeStartAndEndTimeFromBlur(transitionObj.hue, timeLapse);
+      util.changeStartAndEndTimeFromBlur(transitionObj.opacity, timeLapse);
+      util.changeStartAndEndTimeFromBlur(transitionObj.radius, timeLapse);
+      util.changeStartAndEndTimeFromBlur(transitionObj.centerAngle, timeLapse);
+      util.changeStartAndEndTimeFromBlur(transitionObj.centerRadius, timeLapse);
+      util.changeStartAndEndTimeFromBlur(transitionObj.focusDeltaAngle, timeLapse);
+      util.changeStartAndEndTimeFromBlur(transitionObj.focusDeltaRadiusRatio, timeLapse);
+    });
+  }
+
   function createNewColor() {
     return {
       h: util.getRandom(transition.hue.currentMin, transition.hue.currentMax),
@@ -565,6 +583,8 @@ var colorShifter = (function() {
     init: init,
     update: update,
     updateShine: updateShine,
+    recoverFromWindowBlur: recoverFromWindowBlur,
+    recoverShineTransitionsFromWindowBlur: recoverShineTransitionsFromWindowBlur,
     createNewColor: createNewColor,
     createShineGradientTransitions: createShineGradientTransitions
   }

@@ -6,8 +6,13 @@
 
 
 // ------------------------------------------------ //
+// Constants
 
-  var svg, svgPos, svgDefs, viewport, previousTime, running;
+
+
+// ------------------------------------------------ //
+
+  var svg, svgPos, svgDefs, viewport, previousTime, running, recoverFromWindowBlur;
 
   window.addEventListener('load', init, false);
 
@@ -23,6 +28,7 @@
 
     // Start the animation loop
     running = true;
+    recoverFromWindowBlur = false;
     previousTime = currentTime;
     util.myRequestAnimationFrame(animationLoop);
 
@@ -59,8 +65,8 @@
   function onWindowFocus() {
     console.log('onWindowFocus');
     running = true;
-    previousTime = Date.now();
-    util.myRequestAnimationFrame(animationLoop);
+    recoverFromWindowBlur = true;
+    animationLoop();
   }
 
   function addEventListeners() {
@@ -110,9 +116,16 @@
       currentTime = Date.now();
       deltaTime = currentTime - previousTime;
 
-      colorShifter.update(currentTime);
-      touchAnimator.update(currentTime);
-      ballHandler.update(currentTime, deltaTime);
+      if (recoverFromWindowBlur) {
+        recoverFromWindowBlur = false;
+        colorShifter.recoverFromWindowBlur(deltaTime);
+        touchAnimator.recoverFromWindowBlur(deltaTime);
+        ballHandler.recoverFromWindowBlur(deltaTime);
+      } else {
+        colorShifter.update(currentTime);
+        touchAnimator.update(currentTime);
+        ballHandler.update(currentTime, deltaTime);
+      }
 
       previousTime = currentTime;
       util.myRequestAnimationFrame(animationLoop);

@@ -317,10 +317,17 @@ var touchAnimator = (function() {
     this.isDone = isDone;
   };
 
+  function recoverFromWindowBlur(timeLapse) {
+    animations.forEach(function(animation) {
+      util.changeStartAndEndTimeFromBlur(animation, timeLapse);
+    });
+  }
+
   return {
     init: init,
     newTouch: newTouch,
     newPop: newPop,
-    update: update
+    update: update,
+    recoverFromWindowBlur: recoverFromWindowBlur
   };
 })();
