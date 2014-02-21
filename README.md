@@ -3,7 +3,7 @@
 #### Fun with SVG, balls, and bouncing!
 
 _See the app running at www.jackieandlevi.com/metabounce!_
-_...or at www.codepen.io/levisl176/pen/lqmAE_
+_...or at www.codepen.io/levisl176/pen/lqmAE!_
 
 This is a project in which I played around with balls and bouncing. This is just for fun, so enjoy!
 
