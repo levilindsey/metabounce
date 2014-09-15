@@ -1,9 +1,9 @@
-var PARAMS = {
+window.PARAMS_SQUISH = {
   // -------------------------------------------- //
   //            v   Play with me!!   v            //
   INTER_BALL_COLLISIONS_ON: true,
   SQUISH_ON: true,
-  INDEPENDENT_CHILD_MOVEMENT_ON: true,
+  INDEPENDENT_CHILD_MOVEMENT_ON: false,
   PARENT_CHILD_MOMENTUM_TRANSFER_ON: false,
   SHINE_ON: false,
   POPPING_ON: false,
@@ -14,24 +14,24 @@ var PARAMS = {
   MIN_DENSITY: 4.75,
   MAX_DENSITY: 5.25,
 
-  COEFF_OF_RESTITUTION: 0.1, // 0 = perfectly INELASTIC collision, 1 = perfectly ELASTIC collision
-  COEFF_OF_FRICTION: 0.01,
+  COEFF_OF_RESTITUTION: 0.82, // 0 = perfectly INELASTIC collision, 1 = perfectly ELASTIC collision
+  COEFF_OF_FRICTION: 0.00001,
 
   MIN_SQUISHINESS: 0, // how much the ball compresses on impact (from 0 to 1)
-  MAX_SQUISHINESS: 0.3,
+  MAX_SQUISHINESS: 0.8,
 
-  COEFF_OF_SQUISHINESS: 0.37,
+  COEFF_OF_SQUISHINESS: 0.45,
   INTRA_BALL_COLLISION_SQUISH_STRENGTH_COEFF: 0.9,
 
   BASE: {
-    BALL_COUNT: 6,
+    BALL_COUNT: 7,
     RECURSIVE_DEPTH: 0,
 
-    MIN_RADIUS: 20, // pixels
-    MAX_RADIUS: 100,
+    MIN_RADIUS: 30, // pixels
+    MAX_RADIUS: 80,
 
-    MIN_VELOCITY: -0.46, // pixels/millis
-    MAX_VELOCITY: 0.46,
+    MIN_VELOCITY: -0.52, // pixels/millis
+    MAX_VELOCITY: 0.52,
 
     MIN_RADIUS_GROWTH_RATE: 0.0005, // pixels/millis
     MAX_RADIUS_GROWTH_RATE: 0.003 // pixels/millis
@@ -74,7 +74,7 @@ var PARAMS = {
     RADIUS_EFFECT_ON_PUSH_STRENGTH_EASING_FUNCTION: 'easeInQuad'
   },
   TOUCH: {
-    MAX_SPEED_CHANGE: 1.5, // pixel / millis
+    MAX_SPEED_CHANGE: 0.52, // pixel / millis
     MAX_DISTANCE: 320, // pixels
     EFFECT_EASING_FUNCTION: 'linear'
   },

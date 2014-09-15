@@ -1,40 +1,40 @@
-var PARAMS = {
+window.PARAMS_BUBBLE = {
   // -------------------------------------------- //
   //            v   Play with me!!   v            //
   INTER_BALL_COLLISIONS_ON: true,
-  SQUISH_ON: false,
+  SQUISH_ON: true,
   INDEPENDENT_CHILD_MOVEMENT_ON: false,
   PARENT_CHILD_MOMENTUM_TRANSFER_ON: false,
-  SHINE_ON: false,
+  SHINE_ON: true,
   POPPING_ON: true,
   GROWING_ON: true,
 
-  GRAVITATIONAL_ACCELERATION: 0.00001, // pixels / millis^2
+  GRAVITATIONAL_ACCELERATION: 0.0, // pixels / millis^2
 
   MIN_DENSITY: 4.75,
   MAX_DENSITY: 5.25,
 
-  COEFF_OF_RESTITUTION: 0.32, // 0 = perfectly INELASTIC collision, 1 = perfectly ELASTIC collision
-  COEFF_OF_FRICTION: 0.0001,
+  COEFF_OF_RESTITUTION: 0.65, // 0 = perfectly INELASTIC collision, 1 = perfectly ELASTIC collision
+  COEFF_OF_FRICTION: 0.00001,
 
   MIN_SQUISHINESS: 0, // how much the ball compresses on impact (from 0 to 1)
   MAX_SQUISHINESS: 0.7,
 
-  COEFF_OF_SQUISHINESS: 0.37,
+  COEFF_OF_SQUISHINESS: 0.97,
   INTRA_BALL_COLLISION_SQUISH_STRENGTH_COEFF: 0.9,
 
   BASE: {
-    BALL_COUNT: 8,
-    RECURSIVE_DEPTH: 1,
+    BALL_COUNT: 5,
+    RECURSIVE_DEPTH: 0,
 
-    MIN_RADIUS: 20, // pixels
+    MIN_RADIUS: 40, // pixels
     MAX_RADIUS: 100,
 
-    MIN_VELOCITY: -0.46, // pixels/millis
-    MAX_VELOCITY: 0.46,
+    MIN_VELOCITY: -0.12, // pixels/millis
+    MAX_VELOCITY: 0.12,
 
-    MIN_RADIUS_GROWTH_RATE: 0.005, // pixels/millis
-    MAX_RADIUS_GROWTH_RATE: 0.03 // pixels/millis
+    MIN_RADIUS_GROWTH_RATE: 0.0005, // pixels/millis
+    MAX_RADIUS_GROWTH_RATE: 0.005 // pixels/millis
   },
   CHILD: {
     MIN_BALL_COUNT: 1,
@@ -46,7 +46,7 @@ var PARAMS = {
     MIN_VELOCITY_RATIO: 0.1,
     MAX_VELOCITY_RATIO: 0.5,
 
-    RADIUS_GROWTH_RATIO: 0.3
+    RADIUS_GROWTH_RATIO: 0.9
   },
   POP: {
     VELOCITY_CHANGE_MAGNITUDE_TIMES_RADIUS_THRESHOLD: 80, // pixels^2/millis
@@ -57,7 +57,7 @@ var PARAMS = {
 
     CHILD_RADIUS_RATIO_UPPER_THRESHOLD: 0.3,
 
-    NEW_BALL_SPAWN_COUNT: 2,
+    NEW_BALL_SPAWN_COUNT: 3,
     NEW_BALL_SPEED_RATIO: 0.35,
     NEW_BALL_MAX_RADIUS_RATIO: 0.6,
 
@@ -74,7 +74,7 @@ var PARAMS = {
     RADIUS_EFFECT_ON_PUSH_STRENGTH_EASING_FUNCTION: 'easeInQuad'
   },
   TOUCH: {
-    MAX_SPEED_CHANGE: 0.52, // pixel / millis
+    MAX_SPEED_CHANGE: 0.2, // pixel / millis
     MAX_DISTANCE: 320, // pixels
     EFFECT_EASING_FUNCTION: 'linear'
   },
@@ -96,29 +96,29 @@ var PARAMS = {
     MIN_LIGHTNESS: 0, // percentage
     MAX_LIGHTNESS: 100,
 
-    OPACITY: 1.0,
+    OPACITY: 0.001,
 
     BACKGROUND_IMAGE: 'url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAN1wAADdcBQiibeAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAADVSURBVHic7duxDYAwAANBiNgDsf+OgQ1oviBIdxNY33s/z+veFjbG+HrCq7XX/YCAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYCRgJGAkYDRsfoPY8759YRXa9f7AQEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjASMBIwEjAaMHQNgFBphZsIkAAAAASUVORK5CYII=)'
   },
   SHINE: {
     EASING_FUNCTION: 'easeInOutQuad',
     IRIDESCENCE: {
-      COUNT: 0,
+      COUNT: 6,
 
       GRADIENT_MOVES: true,
       GRADIENT_SIZE_CHANGES: true,
 
       BORDER_GRADIENT_STOP_OFFSET: 70, // percentage
-      BORDER_GRADIENT_OPACITY_RATIO: 0.3,
+      BORDER_GRADIENT_OPACITY_RATIO: 0.27,
 
       MIN_TRANSITION_TIME: 3000,
       MAX_TRANSITION_TIME: 5000,
 
       MIN_OPACITY: 0.0001, // from 0 to 1
-      MAX_OPACITY: 0.2,
+      MAX_OPACITY: 0.15,
 
-      MIN_RADIUS: 30, // percentage
-      MAX_RADIUS: 50,
+      MIN_RADIUS: 25, // percentage
+      MAX_RADIUS: 40,
 
       SATURATION: 100, // percentage
       LIGHTNESS: 60, // percentage

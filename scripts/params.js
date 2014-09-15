@@ -1,4 +1,4 @@
-var PARAMS = {
+window.PARAMS = {
   // -------------------------------------------- //
   //            v   Play with me!!   v            //
   INTER_BALL_COLLISIONS_ON: true,

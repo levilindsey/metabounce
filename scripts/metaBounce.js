@@ -17,6 +17,8 @@
   window.addEventListener('load', init, false);
 
   function init() {
+    setRandomParameterSet();
+
     var currentTime = Date.now();
 
     createMiscElements();
@@ -32,7 +34,8 @@
     previousTime = currentTime;
     util.myRequestAnimationFrame(animationLoop);
 
-    handleAutoTouches();
+    handleInitialAutoTouches();
+    handleRecurringAutoTouches();
   }
 
   function createMiscElements() {
@@ -93,7 +96,7 @@
     }, false);
   }
 
-  function handleAutoTouches() {
+  function handleInitialAutoTouches() {
     var index = 0;
 
     PARAMS.AUTO_TOUCHES.forEach(function(autoTouch) {
@@ -107,6 +110,15 @@
         y: autoTouch.POS_RATIO.Y * viewport.height
       });
     }
+  }
+
+  function handleRecurringAutoTouches() {
+    setInterval(function () {
+      ballHandler.handleTouch({
+        x: Math.random() * viewport.width,
+        y: Math.random() * viewport.height
+      });
+    }, 9000);
   }
 
   function animationLoop() {
@@ -130,6 +142,27 @@
       previousTime = currentTime;
       util.myRequestAnimationFrame(animationLoop);
     }
+  }
+
+  function setRandomParameterSet() {
+    var parameterOptions, selectedSetName;
+
+    parameterOptions = [
+        'BUBBLE',
+//        'GRAVITY',
+        'GROWTH',
+        'DEPENDENT',
+        'INDEPENDENT',
+        'METABUBBLE',
+//        'RESISTANCE',
+        'SQUISH',
+        'SWARM'
+//        'TOUCH_OF_DEATH'
+    ];
+
+    selectedSetName = parameterOptions[parseInt(Math.random() * parameterOptions.length)];
+
+    window.PARAMS = window['PARAMS_' + selectedSetName];
   }
 
   // ---------------------------------------------- //

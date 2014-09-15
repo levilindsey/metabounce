@@ -1,20 +1,20 @@
-var PARAMS = {
+window.PARAMS_INDEPENDENT = {
   // -------------------------------------------- //
   //            v   Play with me!!   v            //
   INTER_BALL_COLLISIONS_ON: true,
   SQUISH_ON: false,
-  INDEPENDENT_CHILD_MOVEMENT_ON: false,
+  INDEPENDENT_CHILD_MOVEMENT_ON: true,
   PARENT_CHILD_MOMENTUM_TRANSFER_ON: false,
   SHINE_ON: false,
   POPPING_ON: false,
   GROWING_ON: false,
 
-  GRAVITATIONAL_ACCELERATION: 0.00001, // pixels / millis^2
+  GRAVITATIONAL_ACCELERATION: 0.0, // pixels / millis^2
 
   MIN_DENSITY: 4.75,
   MAX_DENSITY: 5.25,
 
-  COEFF_OF_RESTITUTION: 0.82, // 0 = perfectly INELASTIC collision, 1 = perfectly ELASTIC collision
+  COEFF_OF_RESTITUTION: 0.95, // 0 = perfectly INELASTIC collision, 1 = perfectly ELASTIC collision
   COEFF_OF_FRICTION: 0.00001,
 
   MIN_SQUISHINESS: 0, // how much the ball compresses on impact (from 0 to 1)
@@ -24,21 +24,21 @@ var PARAMS = {
   INTRA_BALL_COLLISION_SQUISH_STRENGTH_COEFF: 0.9,
 
   BASE: {
-    BALL_COUNT: 45,
-    RECURSIVE_DEPTH: 0,
+    BALL_COUNT: 7,
+    RECURSIVE_DEPTH: 2,
 
-    MIN_RADIUS: 5, // pixels
-    MAX_RADIUS: 26,
+    MIN_RADIUS: 30, // pixels
+    MAX_RADIUS: 100,
 
-    MIN_VELOCITY: -0.46, // pixels/millis
-    MAX_VELOCITY: 0.46,
+    MIN_VELOCITY: -0.6, // pixels/millis
+    MAX_VELOCITY: 0.6,
 
     MIN_RADIUS_GROWTH_RATE: 0.0005, // pixels/millis
     MAX_RADIUS_GROWTH_RATE: 0.003 // pixels/millis
   },
   CHILD: {
     MIN_BALL_COUNT: 1,
-    MAX_BALL_COUNT: 5,
+    MAX_BALL_COUNT: 4,
 
     MIN_SIZE_RATIO: 0.06,
     MAX_SIZE_RATIO: 0.3,

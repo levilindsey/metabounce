@@ -1,21 +1,21 @@
-var PARAMS = {
+window.PARAMS_RESISTANCE = {
   // -------------------------------------------- //
   //            v   Play with me!!   v            //
   INTER_BALL_COLLISIONS_ON: true,
-  SQUISH_ON: false,
+  SQUISH_ON: true,
   INDEPENDENT_CHILD_MOVEMENT_ON: true,
   PARENT_CHILD_MOMENTUM_TRANSFER_ON: false,
-  SHINE_ON: true,
-  POPPING_ON: true,
-  GROWING_ON: true,
+  SHINE_ON: false,
+  POPPING_ON: false,
+  GROWING_ON: false,
 
-  GRAVITATIONAL_ACCELERATION: 0.0, // pixels / millis^2
+  GRAVITATIONAL_ACCELERATION: 0.00001, // pixels / millis^2
 
   MIN_DENSITY: 4.75,
   MAX_DENSITY: 5.25,
 
-  COEFF_OF_RESTITUTION: 1.0, // 0 = perfectly INELASTIC collision, 1 = perfectly ELASTIC collision
-  COEFF_OF_FRICTION: 0.0,
+  COEFF_OF_RESTITUTION: 0.1, // 0 = perfectly INELASTIC collision, 1 = perfectly ELASTIC collision
+  COEFF_OF_FRICTION: 0.01,
 
   MIN_SQUISHINESS: 0, // how much the ball compresses on impact (from 0 to 1)
   MAX_SQUISHINESS: 0.3,
@@ -24,21 +24,21 @@ var PARAMS = {
   INTRA_BALL_COLLISION_SQUISH_STRENGTH_COEFF: 0.9,
 
   BASE: {
-    BALL_COUNT: 17,
+    BALL_COUNT: 6,
     RECURSIVE_DEPTH: 0,
 
-    MIN_RADIUS: 30, // pixels
+    MIN_RADIUS: 20, // pixels
     MAX_RADIUS: 100,
 
-    MIN_VELOCITY: -0.2, // pixels/millis
-    MAX_VELOCITY: 0.2,
+    MIN_VELOCITY: -0.46, // pixels/millis
+    MAX_VELOCITY: 0.46,
 
-    MIN_RADIUS_GROWTH_RATE: 0.001, // pixels/millis
-    MAX_RADIUS_GROWTH_RATE: 0.006 // pixels/millis
+    MIN_RADIUS_GROWTH_RATE: 0.0005, // pixels/millis
+    MAX_RADIUS_GROWTH_RATE: 0.003 // pixels/millis
   },
   CHILD: {
     MIN_BALL_COUNT: 1,
-    MAX_BALL_COUNT: 4,
+    MAX_BALL_COUNT: 5,
 
     MIN_SIZE_RATIO: 0.06,
     MAX_SIZE_RATIO: 0.3,
@@ -46,25 +46,25 @@ var PARAMS = {
     MIN_VELOCITY_RATIO: 0.1,
     MAX_VELOCITY_RATIO: 0.5,
 
-    RADIUS_GROWTH_RATIO: 0.33
+    RADIUS_GROWTH_RATIO: 0.9
   },
   POP: {
     VELOCITY_CHANGE_MAGNITUDE_TIMES_RADIUS_THRESHOLD: 80, // pixels^2/millis
     CHILD_VELOCITY_CHANGE_MAGNITUDE_RADIUS_THRESHOLD_RATIO: 0.1,
 
-    RADIUS_UPPER_THRESHOLD: 140,
-    RADIUS_LOWER_THRESHOLD: 1,
+    RADIUS_UPPER_THRESHOLD: 120,
+    RADIUS_LOWER_THRESHOLD: 10,
 
     CHILD_RADIUS_RATIO_UPPER_THRESHOLD: 0.3,
 
-    NEW_BALL_SPAWN_COUNT: 17,
-    NEW_BALL_SPEED_RATIO: 0.0,
-    NEW_BALL_MAX_RADIUS_RATIO: 0.8,
+    NEW_BALL_SPAWN_COUNT: 3,
+    NEW_BALL_SPEED_RATIO: 0.35,
+    NEW_BALL_MAX_RADIUS_RATIO: 0.6,
 
-    ANIMATION_TO_BALL_RADIUS_RATIO: 2.2,
+    ANIMATION_TO_BALL_RADIUS_RATIO: 1.7,
 
-    POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO: 0.0,
-    POP_TO_TOUCH_MAX_DISTANCE_RATIO: 0.0,
+    POP_TO_TOUCH_MAX_SPEED_CHANGE_RATIO: 4.5,
+    POP_TO_TOUCH_MAX_DISTANCE_RATIO: 1.0,
 
     WHOOSH_OPACITY_RATIO: 0.2,
 
@@ -74,8 +74,8 @@ var PARAMS = {
     RADIUS_EFFECT_ON_PUSH_STRENGTH_EASING_FUNCTION: 'easeInQuad'
   },
   TOUCH: {
-    MAX_SPEED_CHANGE: 500, // pixel / millis
-    MAX_DISTANCE: 4000, // pixels
+    MAX_SPEED_CHANGE: 1.5, // pixel / millis
+    MAX_DISTANCE: 320, // pixels
     EFFECT_EASING_FUNCTION: 'linear'
   },
   COLOR: {
@@ -91,10 +91,10 @@ var PARAMS = {
     MAX_HUE: 360,
 
     MIN_SATURATION: 0, // percentage
-    MAX_SATURATION: 80,
+    MAX_SATURATION: 100,
 
     MIN_LIGHTNESS: 0, // percentage
-    MAX_LIGHTNESS: 10,
+    MAX_LIGHTNESS: 100,
 
     OPACITY: 1.0,
 
@@ -103,7 +103,7 @@ var PARAMS = {
   SHINE: {
     EASING_FUNCTION: 'easeInOutQuad',
     IRIDESCENCE: {
-      COUNT: 4,
+      COUNT: 0,
 
       GRADIENT_MOVES: true,
       GRADIENT_SIZE_CHANGES: true,
@@ -114,11 +114,11 @@ var PARAMS = {
       MIN_TRANSITION_TIME: 3000,
       MAX_TRANSITION_TIME: 5000,
 
-      MIN_OPACITY: 0.001, // from 0 to 1
-      MAX_OPACITY: 0.1,
+      MIN_OPACITY: 0.0001, // from 0 to 1
+      MAX_OPACITY: 0.2,
 
-      MIN_RADIUS: 35, // percentage
-      MAX_RADIUS: 60,
+      MIN_RADIUS: 25, // percentage
+      MAX_RADIUS: 40,
 
       SATURATION: 100, // percentage
       LIGHTNESS: 60, // percentage
