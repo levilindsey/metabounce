@@ -9,6 +9,8 @@ window.PARAMS_GROWTH = {
   POPPING_ON: true,
   GROWING_ON: true,
 
+  RECURRING_AUTO_TOUCH_PERIOD: Number.NaN,
+
   GRAVITATIONAL_ACCELERATION: 0.00001, // pixels / millis^2
 
   MIN_DENSITY: 4.75,
@@ -217,20 +219,8 @@ window.PARAMS_GROWTH = {
       TIME: 1000
     },
     {
-      POS_RATIO: { X: 0.05, Y: 0.95 },
-      TIME: 1200
-    },
-    {
-      POS_RATIO: { X: 0.8, Y: 0.2 },
-      TIME: 1600
-    },
-    {
       POS_RATIO: { X: 0.2, Y: 0.8 },
       TIME: 2400
-    },
-    {
-      POS_RATIO: { X: 0.5, Y: 0.5 },
-      TIME: 4000
     }
   ]
   // -------------------------------------------- //

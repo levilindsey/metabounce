@@ -24,6 +24,8 @@
     createMiscElements();
     addEventListeners();
 
+    adjustBallCountForViewportSize();
+
     colorShifter.init(svgDefs, currentTime);
     ballHandler.init(svg, svgDefs, viewport, currentTime);
     touchAnimator.init(svg, svgDefs);
@@ -113,12 +115,14 @@
   }
 
   function handleRecurringAutoTouches() {
-    setInterval(function () {
-      ballHandler.handleTouch({
-        x: Math.random() * viewport.width,
-        y: Math.random() * viewport.height
-      });
-    }, 9000);
+    if (!isNaN(PARAMS.RECURRING_AUTO_TOUCH_PERIOD)) {
+      setInterval(function () {
+        ballHandler.handleTouch({
+          x: Math.random() * viewport.width,
+          y: Math.random() * viewport.height
+        });
+      }, PARAMS.RECURRING_AUTO_TOUCH_PERIOD);
+    }
   }
 
   function animationLoop() {
@@ -151,8 +155,8 @@
         'BUBBLE',
 //        'GRAVITY',
         'GROWTH',
-        'DEPENDENT',
-        'INDEPENDENT',
+//        'DEPENDENT',
+//        'INDEPENDENT',
         'METABUBBLE',
 //        'RESISTANCE',
         'SQUISH',
@@ -163,6 +167,13 @@
     selectedSetName = parameterOptions[parseInt(Math.random() * parameterOptions.length)];
 
     window.PARAMS = window['PARAMS_' + selectedSetName];
+
+    initializeDependentConstants();
+  }
+
+  function adjustBallCountForViewportSize() {
+    PARAMS.BASE.BALL_COUNT =
+        parseInt(PARAMS.BASE.BALL_COUNT * viewport.width * viewport.height * 0.000001);
   }
 
   // ---------------------------------------------- //
