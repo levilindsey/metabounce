@@ -142,7 +142,7 @@ var util = (function() {
   function getPageXY(element) {
     var cumulativeX = 0,
         cumulativeY = 0;
-    while (element !== null) {
+    while (element) {
       cumulativeX += element.offsetLeft;
       cumulativeY += element.offsetTop;
       element = element.offsetParent;
