@@ -143,8 +143,8 @@ var util = (function() {
     var cumulativeX = 0,
         cumulativeY = 0;
     while (element) {
-      cumulativeX += element.offsetLeft;
-      cumulativeY += element.offsetTop;
+      cumulativeX += element.getBoundingClientRect().left;
+      cumulativeY += element.getBoundingClientRect().top;
       element = element.offsetParent;
     }
     return { x: cumulativeX, y: cumulativeY };
