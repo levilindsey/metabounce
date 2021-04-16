@@ -2,7 +2,7 @@
 
 #### Fun with SVG, balls, and bouncing!
 
-_See this running at [www.jackieandlevi.com/metabounce](http://www.jackieandlevi.com/metabounce)!_
+_See this running at [levi.dev/metabounce](https://levi.dev/metabounce)!_
 
 _...or at [www.codepen.io/levisl176/pen/lqmAE](http://www.codepen.io/levisl176/pen/lqmAE)!_
 
